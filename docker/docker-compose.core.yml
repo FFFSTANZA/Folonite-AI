@@ -1,0 +1,19 @@
+name: folonite
+
+services:
+  folonite-desktop:
+    # Build from source
+    build:
+      context: ../packages/
+      dockerfile: folonited/Dockerfile
+    # Use pre-built image
+    image: ghcr.io/folonite-ai/folonite-desktop:edge
+    shm_size: "2g"
+    container_name: folonite-desktop
+    restart: unless-stopped
+    hostname: computer
+    privileged: true
+    ports:
+      - "9990:9990" # folonited service & noVNC
+    environment:
+      - DISPLAY=:0

@@ -1,0 +1,14 @@
+apiVersion: v2
+name: postgresql
+description: A Helm chart for PostgreSQL database
+type: application
+version: 0.1.0
+appVersion: "16-alpine"
+keywords:
+  - postgresql
+  - database
+  - sql
+maintainers:
+  - name: Folonite Team
+sources:
+  - https://github.com/folonite-ai/folonite

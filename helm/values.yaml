@@ -1,0 +1,117 @@
+global:
+  storageClass: ""
+  
+postgresql:
+  enabled: true
+  fullnameOverride: "folonite-postgresql"
+  auth:
+    username: postgres
+    password: postgres
+    database: folonitedb
+  service:
+    port: 5432
+  persistence:
+    enabled: true
+    size: 10Gi
+
+folonite-desktop:
+  fullnameOverride: "folonite-desktop"
+  image:
+    repository: ghcr.io/folonite-ai/folonite-desktop
+    tag: edge
+  service:
+    type: ClusterIP
+    port: 9990
+  resources:
+    limits:
+      memory: "4Gi"
+      cpu: "2000m"
+    requests:
+      memory: "2Gi"
+      cpu: "1000m"
+  shm:
+    enabled: true
+    size: "2Gi"
+
+folonite-agent:
+  fullnameOverride: "folonite-agent"
+  image:
+    repository: ghcr.io/folonite-ai/folonite-agent
+    tag: edge
+  service:
+    type: ClusterIP
+    port: 9991
+  config:
+    foloniteDesktopUrl: "http://folonite-desktop:9990"
+  postgresql:
+    enabled: false
+  externalDatabase:
+    host: "folonite-postgresql"
+    port: 5432
+    database: folonitedb
+    username: postgres
+    password: postgres
+  # Legacy API key configuration (for backward compatibility)
+  env:
+    ANTHROPIC_API_KEY: ""
+    OPENAI_API_KEY: ""
+    GEMINI_API_KEY: ""
+  
+  # New secret management structure - use this for better security
+  apiKeys:
+    anthropic:
+      useExisting: false
+      secretName: ""
+      secretKey: "anthropic-api-key"
+      value: ""  # Only used if useExisting is false
+    openai:
+      useExisting: false
+      secretName: ""
+      secretKey: "openai-api-key"
+      value: ""  # Only used if useExisting is false
+    gemini:
+      useExisting: false
+      secretName: ""
+      secretKey: "gemini-api-key"
+      value: ""  # Only used if useExisting is false
+  resources:
+    limits:
+      memory: "2Gi"
+      cpu: "1000m"
+    requests:
+      memory: "1Gi"
+      cpu: "500m"
+
+folonite-ui:
+  fullnameOverride: "folonite-ui"
+  image:
+    repository: ghcr.io/folonite-ai/folonite-ui
+    tag: edge
+  service:
+    type: ClusterIP
+    port: 9992
+  config:
+    agentBaseUrl: "http://folonite-agent:9991"
+    desktopVncUrl: "http://folonite-desktop:9990/websockify"
+  resources:
+    limits:
+      memory: "1Gi"
+      cpu: "500m"
+    requests:
+      memory: "512Mi"
+      cpu: "250m"
+
+# LiteLLM proxy is disabled by default
+# Enable it by using -f values-proxy.yaml or --set folonite-llm-proxy.enabled=true
+folonite-llm-proxy:
+  enabled: false
+
+ingress:
+  enabled: false
+  className: "nginx"
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+  host: folonite.example.com
+  tls:
+    enabled: true
+    secretName: folonite-tls

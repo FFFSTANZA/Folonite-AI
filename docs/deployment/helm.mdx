@@ -1,0 +1,285 @@
+---
+title: "Helm Deployment"
+description: "Deploy Folonite on Kubernetes using Helm charts"
+---
+
+# Deploy Folonite on Kubernetes with Helm
+
+Helm provides a simple way to deploy Folonite on Kubernetes clusters.
+
+## Prerequisites
+
+- Kubernetes cluster (1.19+)
+- Helm 3.x installed
+- kubectl configured
+- 8GB+ available memory in cluster
+
+## Quick Start
+
+<Steps>
+  <Step title="Clone Repository">
+    ```bash
+    git clone https://github.com/folonite-ai/folonite.git
+    cd folonite
+    ```
+  </Step>
+  
+  <Step title="Configure API Keys">
+    Create a `values.yaml` file with at least one API key:
+    
+    ```yaml
+    folonite-agent:
+      apiKeys:
+        anthropic:
+          value: "sk-ant-your-key-here"
+        # Optional: Add more providers
+        # openai:
+        #   value: "sk-your-key-here"
+        # gemini:
+        #   value: "your-key-here"
+    ```
+  </Step>
+  
+  <Step title="Install Folonite">
+    ```bash
+    helm install folonite ./helm \
+      --namespace folonite \
+      --create-namespace \
+      -f values.yaml
+    ```
+  </Step>
+  
+  <Step title="Access Folonite">
+    ```bash
+    # Port-forward for local access
+    kubectl port-forward -n folonite svc/folonite-ui 9992:9992
+    
+    # Access at http://localhost:9992
+    ```
+  </Step>
+</Steps>
+
+## Basic Configuration
+
+### API Keys
+
+Configure at least one AI provider:
+
+```yaml
+folonite-agent:
+  apiKeys:
+    anthropic:
+      value: "sk-ant-your-key-here"
+    openai:
+      value: "sk-your-key-here"
+    gemini:
+      value: "your-key-here"
+```
+
+### Resource Limits (Optional)
+
+Adjust resources based on your needs:
+
+```yaml
+# Desktop container (where automation runs)
+desktop:
+  resources:
+    requests:
+      memory: "2Gi"
+      cpu: "1"
+    limits:
+      memory: "4Gi"
+      cpu: "2"
+
+# Agent (AI orchestration)
+agent:
+  resources:
+    requests:
+      memory: "1Gi"
+      cpu: "500m"
+```
+
+### External Access (Optional)
+
+Enable ingress for domain-based access:
+
+```yaml
+ui:
+  ingress:
+    enabled: true
+    hostname: folonite.your-domain.com
+    tls: true
+```
+
+## Accessing Folonite
+
+### Local Access (Recommended)
+
+```bash
+kubectl port-forward -n folonite svc/folonite-ui 9992:9992
+```
+
+Access at: http://localhost:9992
+
+### External Access
+
+If you configured ingress:
+- Access at: https://folonite.your-domain.com
+
+## Verifying Deployment
+
+Check that all pods are running:
+
+```bash
+kubectl get pods -n folonite
+```
+
+Expected output:
+```
+NAME                              READY   STATUS    RESTARTS   AGE
+folonite-agent-xxxxx               1/1     Running   0          2m
+folonite-desktop-xxxxx             1/1     Running   0          2m
+folonite-postgresql-0              1/1     Running   0          2m
+folonite-ui-xxxxx                 1/1     Running   0          2m
+```
+
+## Troubleshooting
+
+### Pods Not Starting
+
+Check pod status:
+```bash
+kubectl describe pod -n folonite <pod-name>
+```
+
+Common issues:
+- Insufficient memory/CPU: Check node resources with `kubectl top nodes`
+- Missing API keys: Verify your values.yaml configuration
+
+### Connection Issues
+
+Test service connectivity:
+```bash
+kubectl logs -n folonite deployment/folonite-agent
+```
+
+### View Logs
+
+```bash
+# All logs
+kubectl logs -n folonite -l app=folonite --tail=100
+
+# Specific component
+kubectl logs -n folonite deployment/folonite-agent
+```
+
+## Upgrading
+
+```bash
+# Update your values.yaml as needed, then:
+helm upgrade folonite ./helm -n folonite -f values.yaml
+```
+
+## Uninstalling
+
+```bash
+# Remove Folonite
+helm uninstall folonite -n folonite
+
+# Clean up namespace
+kubectl delete namespace folonite
+```
+
+## Advanced Configuration
+
+<AccordionGroup>
+  <Accordion title="Using External Secrets">
+    If using Kubernetes secret management (Vault, Sealed Secrets, etc.):
+    
+    ```yaml
+    folonite-agent:
+      apiKeys:
+        anthropic:
+          useExisting: true
+          secretName: "my-api-keys"
+          secretKey: "anthropic-key"
+    ```
+    
+    Create the secret manually:
+    ```bash
+    kubectl create secret generic my-api-keys \
+      --namespace folonite \
+      --from-literal=anthropic-key="sk-ant-your-key"
+    ```
+  </Accordion>
+  
+  <Accordion title="LiteLLM Proxy Mode">
+    For centralized LLM management, use the included LiteLLM proxy:
+    
+    ```bash
+    helm install folonite ./helm \
+      -f values-proxy.yaml \
+      --namespace folonite \
+      --create-namespace \
+      --set folonite-llm-proxy.env.ANTHROPIC_API_KEY="your-key"
+    ```
+    
+    This provides:
+    - Centralized API key management
+    - Request routing and load balancing
+    - Rate limiting and retry logic
+  </Accordion>
+  
+  <Accordion title="Custom Storage">
+    Configure persistent storage:
+    
+    ```yaml
+    desktop:
+      persistence:
+        enabled: true
+        size: "20Gi"
+        storageClass: "fast-ssd"
+    
+    postgresql:
+      persistence:
+        size: "20Gi"
+        storageClass: "fast-ssd"
+    ```
+  </Accordion>
+  
+  <Accordion title="Production Security">
+    ```yaml
+    # Network policies
+    networkPolicy:
+      enabled: true
+    
+    # Pod security
+    podSecurityContext:
+      runAsNonRoot: true
+      runAsUser: 1000
+      fsGroup: 1000
+    
+    # Enable authentication
+    auth:
+      enabled: true
+      type: "basic"
+      username: "admin"
+      password: "changeme"  # Use secrets in production!
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="API Reference" icon="code" href="/api-reference/introduction">
+    Integrate Folonite with your applications
+  </Card>
+  <Card title="LiteLLM Integration" icon="plug" href="/deployment/litellm">
+    Use any LLM provider with Folonite
+  </Card>
+</CardGroup>
+
+<Note>
+  **Need help?** Join our [Discord community](https://discord.com/invite/d9ewZkWPTP) or check our [GitHub discussions](https://github.com/folonite-ai/folonite/discussions).
+</Note>

@@ -1,0 +1,94 @@
+replicaCount: 1
+
+image:
+  repository: ghcr.io/folonite-ai/folonite-agent
+  tag: edge
+  pullPolicy: IfNotPresent
+
+nameOverride: ""
+fullnameOverride: ""
+
+service:
+  type: ClusterIP
+  port: 9991
+  targetPort: 9991
+  annotations: {}
+
+resources:
+  limits:
+    memory: "2Gi"
+    cpu: "1000m"
+  requests:
+    memory: "1Gi"
+    cpu: "500m"
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+env:
+  DATABASE_URL: ""
+  FOLONITE_DESKTOP_BASE_URL: "http://folonite-desktop:9990"
+  FOLONITE_LLM_PROXY_URL: ""
+  # Legacy API key values for backward compatibility
+  ANTHROPIC_API_KEY: ""
+  OPENAI_API_KEY: ""
+  GEMINI_API_KEY: ""
+
+# New secret management structure
+apiKeys:
+  anthropic:
+    useExisting: false
+    secretName: ""
+    secretKey: "anthropic-api-key"
+    value: ""  # Only used if useExisting is false
+  openai:
+    useExisting: false
+    secretName: ""
+    secretKey: "openai-api-key"
+    value: ""  # Only used if useExisting is false
+  gemini:
+    useExisting: false
+    secretName: ""
+    secretKey: "gemini-api-key"
+    value: ""  # Only used if useExisting is false
+
+config:
+  databaseUrl: "postgresql://postgres:postgres@folonite-postgresql:5432/folonitedb"
+  foloniteDesktopUrl: "http://folonite-desktop:9990"
+  llmProxyUrl: ""
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: folonite-agent.local
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls: []
+
+postgresql:
+  enabled: true
+  auth:
+    username: postgres
+    password: postgres
+    database: folonitedb
+  service:
+    port: 5432
+  primary:
+    persistence:
+      enabled: true
+      size: 10Gi
+
+externalDatabase:
+  host: ""
+  port: 5432
+  database: folonitedb
+  username: postgres
+  password: postgres
+  existingSecret: ""
+  existingSecretPasswordKey: ""

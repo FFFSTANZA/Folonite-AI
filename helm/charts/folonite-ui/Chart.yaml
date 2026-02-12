@@ -1,0 +1,14 @@
+apiVersion: v2
+name: folonite-ui
+description: A Helm chart for Folonite UI service
+type: application
+version: 0.1.0
+appVersion: "edge"
+keywords:
+  - folonite
+  - ui
+  - frontend
+maintainers:
+  - name: Folonite Team
+sources:
+  - https://github.com/folonite-ai/folonite

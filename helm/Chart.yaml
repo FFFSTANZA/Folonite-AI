@@ -1,0 +1,32 @@
+apiVersion: v2
+name: folonite
+description: Folonite - Complete deployment package
+type: application
+version: 0.1.0
+appVersion: "edge"
+dependencies:
+  - name: postgresql
+    version: 0.1.0
+    repository: file://./charts/postgresql
+    condition: postgresql.enabled
+  - name: folonite-desktop
+    version: 0.1.0
+    repository: file://./charts/folonite-desktop
+  - name: folonite-agent
+    version: 0.1.0
+    repository: file://./charts/folonite-agent
+  - name: folonite-ui
+    version: 0.1.0
+    repository: file://./charts/folonite-ui
+  - name: folonite-llm-proxy
+    version: 0.1.0
+    repository: file://./charts/folonite-llm-proxy
+    condition: folonite-llm-proxy.enabled
+keywords:
+  - folonite
+  - automation
+  - remote-desktop
+maintainers:
+  - name: Folonite Team
+sources:
+  - https://github.com/folonite-ai/folonite

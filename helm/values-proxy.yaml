@@ -1,0 +1,52 @@
+# Proxy configuration for Folonite with LiteLLM
+# This values file enables the LiteLLM proxy and configures the agent to use it
+# Usage: helm install folonite . -f values-proxy.yaml
+
+# Enable LiteLLM proxy
+folonite-llm-proxy:
+  enabled: true
+  fullnameOverride: "folonite-llm-proxy"
+  env:
+    # Set your API keys here
+    ANTHROPIC_API_KEY: ""
+    OPENAI_API_KEY: ""
+    GEMINI_API_KEY: ""
+  service:
+    type: ClusterIP
+    port: 4000
+  resources:
+    limits:
+      memory: "1Gi"
+      cpu: "1000m"
+    requests:
+      memory: "512Mi"
+      cpu: "500m"
+
+# Configure agent to use the proxy
+folonite-agent:
+  config:
+    llmProxyUrl: "http://folonite-llm-proxy:4000"
+  # Don't set API keys on the agent when using proxy
+  env:
+    ANTHROPIC_API_KEY: ""
+    OPENAI_API_KEY: ""
+    GEMINI_API_KEY: ""
+
+# All other services remain the same
+postgresql:
+  enabled: true
+
+folonite-desktop:
+  enabled: true
+
+folonite-ui:
+  enabled: true
+
+# Optional: Enable ingress for external access
+ingress:
+  enabled: false
+  className: "nginx"
+  host: folonite.example.com
+  tls:
+    enabled: true
+    secretName: folonite-tls

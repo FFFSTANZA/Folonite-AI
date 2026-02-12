@@ -1,0 +1,15 @@
+apiVersion: v2
+name: folonite-desktop
+description: A Helm chart for Folonite Desktop service
+type: application
+version: 0.1.0
+appVersion: "edge"
+keywords:
+  - folonite
+  - desktop
+  - vnc
+  - remote-desktop
+maintainers:
+  - name: Folonite Team
+sources:
+  - https://github.com/folonite-ai/folonite

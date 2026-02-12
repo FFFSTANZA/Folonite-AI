@@ -1,0 +1,97 @@
+name: folonite
+
+services:
+  folonite-desktop:
+    # Build from source
+    build:
+      context: ../packages/
+      dockerfile: folonited/Dockerfile
+    # Use pre-built image
+    image: ghcr.io/folonite-ai/folonite-desktop:edge
+    shm_size: "2g"
+    container_name: folonite-desktop
+    restart: unless-stopped
+    hostname: computer
+    privileged: true
+    ports:
+      - "9990:9990" # folonited service & noVNC
+    environment:
+      - DISPLAY=:0
+    networks:
+      - folonite-network
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: folonite-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_DB=folonitedb
+    networks:
+      - folonite-network
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  folonite-agent:
+    build:
+      context: ../packages/
+      dockerfile: folonite-agent/Dockerfile
+    # Use pre-built image
+    image: ghcr.io/folonite-ai/folonite-agent:edge
+    container_name: folonite-agent
+    restart: unless-stopped
+    ports:
+      - "9991:9991"
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/folonitedb}
+      - FOLONITE_DESKTOP_BASE_URL=${FOLONITE_DESKTOP_BASE_URL:-http://folonite-desktop:9990}
+      - FOLONITE_LLM_PROXY_URL=${FOLONITE_LLM_PROXY_URL:-http://folonite-llm-proxy:4000}
+    depends_on:
+      - postgres
+    networks:
+      - folonite-network
+
+  folonite-llm-proxy:
+    build:
+      context: ../packages/
+      dockerfile: folonite-llm-proxy/Dockerfile
+    ports:
+      - "4000:4000"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    networks:
+      - folonite-network
+
+  folonite-ui:
+    build:
+      context: ../packages/
+      dockerfile: folonite-ui/Dockerfile
+      args:
+        - FOLONITE_AGENT_BASE_URL=${FOLONITE_AGENT_BASE_URL:-http://folonite-agent:9991}
+        - FOLONITE_DESKTOP_VNC_URL=${FOLONITE_DESKTOP_VNC_URL:-http://folonite-desktop:9990/websockify}
+    # Use pre-built image
+    image: ghcr.io/folonite-ai/folonite-ui:edge
+    container_name: folonite-ui
+    restart: unless-stopped
+    ports:
+      - "9992:9992"
+    environment:
+      - NODE_ENV=production
+      - FOLONITE_AGENT_BASE_URL=${FOLONITE_AGENT_BASE_URL:-http://folonite-agent:9991}
+      - FOLONITE_DESKTOP_VNC_URL=${FOLONITE_DESKTOP_VNC_URL:-http://folonite-desktop:9990/websockify}
+    depends_on:
+      - folonite-agent
+    networks:
+      - folonite-network
+
+networks:
+  folonite-network:
+    driver: bridge
+
+volumes:
+  postgres_data:

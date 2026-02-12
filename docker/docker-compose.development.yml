@@ -1,0 +1,48 @@
+## docker-compose file that spins up a folonite-desktop container
+## and a postgres container. folonite-ui and folonite-agent are not included
+## in this file, and can be run separately using npm, allowing for
+## easier local development.
+
+name: folonite
+
+services:
+  folonite-desktop:
+    # Build from source
+    build:
+      context: ../packages/
+      dockerfile: folonited/Dockerfile
+    # Use pre-built image
+    image: ghcr.io/folonite-ai/folonite-desktop:edge
+    shm_size: "2g"
+    container_name: folonite-desktop
+    restart: unless-stopped
+    hostname: computer
+    privileged: true
+    ports:
+      - "9990:9990" # folonited service & noVNC
+    environment:
+      - DISPLAY=:0
+    networks:
+      - folonite-network
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: folonite-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_DB=folonitedb
+    networks:
+      - folonite-network
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+networks:
+  folonite-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
