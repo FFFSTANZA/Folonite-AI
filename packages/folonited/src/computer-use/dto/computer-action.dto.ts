@@ -7,6 +7,7 @@ import {
   IsArray,
   Min,
   IsIn,
+  IsBoolean,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import {
@@ -187,6 +188,19 @@ export class ScreenshotActionDto extends BaseActionDto {
   action: 'screenshot';
 }
 
+export class UiSnapshotActionDto extends BaseActionDto {
+  @IsIn(['ui_snapshot'])
+  action: 'ui_snapshot';
+
+  @IsOptional()
+  @IsIn(['low', 'high'])
+  detail?: 'low' | 'high';
+
+  @IsOptional()
+  @IsBoolean()
+  ocr?: boolean;
+}
+
 export class CursorPositionActionDto extends BaseActionDto {
   @IsIn(['cursor_position'])
   action: 'cursor_position';
@@ -233,6 +247,7 @@ export type ComputerActionDto =
   | PasteTextActionDto
   | WaitActionDto
   | ScreenshotActionDto
+  | UiSnapshotActionDto
   | CursorPositionActionDto
   | ApplicationActionDto
   | WriteFileActionDto

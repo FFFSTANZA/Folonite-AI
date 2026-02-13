@@ -6,6 +6,7 @@ import {
   ToolResultContentBlock,
   MessageContentType,
   isScreenshotToolUseBlock,
+  isUiSnapshotToolUseBlock,
   isCursorPositionToolUseBlock,
   isMoveMouseToolUseBlock,
   isTraceMouseToolUseBlock,
@@ -63,6 +64,49 @@ export async function handleComputerToolUse(
           {
             type: MessageContentType.Text,
             text: 'ERROR: Failed to take screenshot',
+          },
+        ],
+        is_error: true,
+      };
+    }
+  }
+
+  if (isUiSnapshotToolUseBlock(block)) {
+    logger.debug('Processing UI snapshot request');
+    try {
+      const snapshot = await uiSnapshot(block.input);
+      const content = [];
+
+      if (snapshot.ocrText) {
+        content.push({
+          type: MessageContentType.Text,
+          text: `OCR (${snapshot.width}x${snapshot.height}):\n${snapshot.ocrText}`,
+        });
+      }
+
+      content.push({
+        type: MessageContentType.Image,
+        source: {
+          data: snapshot.image,
+          media_type: 'image/png',
+          type: 'base64',
+        },
+      });
+
+      return {
+        type: MessageContentType.ToolResult,
+        tool_use_id: block.id,
+        content,
+      };
+    } catch (error) {
+      logger.error(`UI snapshot failed: ${error.message}`, error.stack);
+      return {
+        type: MessageContentType.ToolResult,
+        tool_use_id: block.id,
+        content: [
+          {
+            type: MessageContentType.Text,
+            text: 'ERROR: Failed to take UI snapshot',
           },
         ],
         is_error: true,
@@ -181,18 +225,18 @@ export async function handleComputerToolUse(
       }
     }
 
-    let image: string | null = null;
+    let snapshot: { image: string } | null = null;
     try {
-      // Wait before taking screenshot to allow UI to settle
+      // Wait before taking snapshot to allow UI to settle
       const delayMs = 750; // 750ms delay
-      logger.debug(`Waiting ${delayMs}ms before taking screenshot`);
+      logger.debug(`Waiting ${delayMs}ms before taking snapshot`);
       await new Promise((resolve) => setTimeout(resolve, delayMs));
 
-      logger.debug('Taking screenshot');
-      image = await screenshot();
-      logger.debug('Screenshot captured successfully');
+      logger.debug('Taking UI snapshot');
+      snapshot = await uiSnapshot({ detail: 'low', ocr: false });
+      logger.debug('UI snapshot captured successfully');
     } catch (error) {
-      logger.error('Failed to take screenshot', error);
+      logger.error('Failed to take UI snapshot', error);
     }
 
     logger.debug(`Tool execution successful for tool_use_id: ${block.id}`);
@@ -207,11 +251,11 @@ export async function handleComputerToolUse(
       ],
     };
 
-    if (image) {
+    if (snapshot) {
       toolResult.content.push({
         type: MessageContentType.Image,
         source: {
-          data: image,
+          data: snapshot.image,
           media_type: 'image/png',
           type: 'base64',
         },
@@ -550,6 +594,42 @@ async function screenshot(): Promise<string> {
     return data.image; // Base64 encoded image
   } catch (error) {
     console.error('Error in screenshot action:', error);
+    throw error;
+  }
+}
+
+async function uiSnapshot(input: {
+  detail?: 'low' | 'high';
+  ocr?: boolean;
+}): Promise<{ image: string; ocrText?: string; width: number; height: number }> {
+  console.log('Taking UI snapshot');
+
+  try {
+    const requestBody = {
+      action: 'ui_snapshot',
+      detail: input.detail,
+      ocr: input.ocr,
+    };
+
+    const response = await fetch(`${FOLONITE_DESKTOP_BASE_URL}/computer-use`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to take UI snapshot: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+
+    if (!data.image) {
+      throw new Error('Failed to take UI snapshot: No image data received');
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error in ui_snapshot action:', error);
     throw error;
   }
 }

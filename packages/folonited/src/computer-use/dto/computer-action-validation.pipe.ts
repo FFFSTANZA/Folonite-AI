@@ -19,6 +19,7 @@ import {
   PasteTextActionDto,
   WaitActionDto,
   ScreenshotActionDto,
+  UiSnapshotActionDto,
   CursorPositionActionDto,
   ApplicationActionDto,
   WriteFileActionDto,
@@ -69,6 +70,9 @@ export class ComputerActionValidationPipe implements PipeTransform {
         break;
       case 'screenshot':
         dto = plainToClass(ScreenshotActionDto, value);
+        break;
+      case 'ui_snapshot':
+        dto = plainToClass(UiSnapshotActionDto, value);
         break;
       case 'cursor_position':
         dto = plainToClass(CursorPositionActionDto, value);

@@ -1,4 +1,9 @@
-import { Button, Coordinates, Press } from "./computerAction.types";
+import {
+  Button,
+  Coordinates,
+  Press,
+  UiSnapshotDetail,
+} from "./computerAction.types";
 
 // Content block types
 export enum MessageContentType {
@@ -158,6 +163,14 @@ export type ScreenshotToolUseBlock = ToolUseContentBlock & {
   name: "computer_screenshot";
 };
 
+export type UiSnapshotToolUseBlock = ToolUseContentBlock & {
+  name: "computer_ui_snapshot";
+  input: {
+    detail?: UiSnapshotDetail;
+    ocr?: boolean;
+  };
+};
+
 export type CursorPositionToolUseBlock = ToolUseContentBlock & {
   name: "computer_cursor_position";
 };
@@ -195,6 +208,7 @@ export type ComputerToolUseContentBlock =
   | PasteTextToolUseBlock
   | WaitToolUseBlock
   | ScreenshotToolUseBlock
+  | UiSnapshotToolUseBlock
   | DragMouseToolUseBlock
   | ScrollToolUseBlock
   | CursorPositionToolUseBlock
