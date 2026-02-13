@@ -34,8 +34,31 @@ export default function Home() {
   useEffect(() => {
     fetchModels()
       .then((data) => {
-        setModels(data);
-        if (data.length > 0) setSelectedModel(data[0]);
+        // Check for custom Groq model
+        const storedGroqModel = localStorage.getItem("folonite_groq_model");
+        const apiKeys = getStoredApiKeys();
+
+        let allModels = [...data];
+
+        // If we have a custom Groq model and the API key is set, add or replace it in the list
+        if (storedGroqModel && apiKeys.groq) {
+          // Remove existing default Groq models if we want to prioritize the custom one, 
+          // or just ensure the custom one is available.
+          // Let's add it to the top if it doesn't exist, or replace if it matches a default name but we want to be sure.
+          // Actually, let's just add it as a new option if it's not there.
+          const existingIndex = allModels.findIndex(m => m.provider === 'groq' && m.name === storedGroqModel);
+
+          if (existingIndex === -1) {
+            allModels.unshift({
+              provider: 'groq',
+              name: storedGroqModel,
+              title: `Groq: ${storedGroqModel} (Custom)`
+            });
+          }
+        }
+
+        setModels(allModels);
+        if (allModels.length > 0) setSelectedModel(allModels[0]);
       })
       .catch((err) => console.error("Failed to load models", err));
   }, []);
@@ -51,7 +74,7 @@ export default function Home() {
         description: string;
         model: Model;
         files?: FileWithBase64[];
-        apiKeys?: { anthropic?: string; openai?: string; google?: string };
+        apiKeys?: { anthropic?: string; openai?: string; google?: string; groq?: string };
       } = {
         description: input,
         model: selectedModel,
@@ -62,7 +85,7 @@ export default function Home() {
       }
 
       const apiKeys = getStoredApiKeys();
-      if (apiKeys.anthropic || apiKeys.openai || apiKeys.google) {
+      if (apiKeys.anthropic || apiKeys.openai || apiKeys.google || apiKeys.groq) {
         taskData.apiKeys = apiKeys;
       }
 
@@ -92,6 +115,8 @@ export default function Home() {
         return <HugeiconsIcon icon={CpuIcon} className="h-3.5 w-3.5 text-emerald-400" />;
       case "google":
         return <HugeiconsIcon icon={ZapIcon} className="h-3.5 w-3.5 text-blue-400" />;
+      case "groq":
+        return <HugeiconsIcon icon={ZapIcon} className="h-3.5 w-3.5 text-orange-400" />;
       default:
         return null;
     }
@@ -103,14 +128,14 @@ export default function Home() {
       <div className="absolute inset-0 bg-gradient-to-br from-folonite-bronze/5 via-transparent to-folonite-bronze/10 pointer-events-none" />
       <div className="absolute top-0 left-1/4 w-96 h-96 bg-folonite-bronze/5 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-folonite-bronze/5 rounded-full blur-3xl pointer-events-none" />
-      
+
       <main className="flex flex-1 flex-col items-center justify-center overflow-y-auto p-4 md:p-8 relative z-10">
         <div className="flex w-full max-w-3xl flex-col items-center gap-10">
           {/* Logo & Greeting */}
           <div className="flex flex-col items-center space-y-4 text-center">
             <div className="relative">
-              <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-folonite-bronze to-folonite-bronze-dark-7 flex items-center justify-center shadow-lg shadow-folonite-bronze/20">
-                <span className="text-3xl font-bold text-white">F</span>
+              <div className="h-20 w-auto px-6 rounded-2xl bg-gradient-to-br from-folonite-bronze to-folonite-bronze-dark-7 flex items-center justify-center shadow-lg shadow-folonite-bronze/20">
+                <span className="text-3xl font-bold text-white">Folonite</span>
               </div>
               <div className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-green-500 border-2 border-background flex items-center justify-center">
                 <div className="h-2 w-2 rounded-full bg-white animate-pulse" />

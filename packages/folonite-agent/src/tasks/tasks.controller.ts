@@ -19,11 +19,13 @@ import { MessagesService } from '../messages/messages.service';
 import { ANTHROPIC_MODELS } from '../anthropic/anthropic.constants';
 import { OPENAI_MODELS } from '../openai/openai.constants';
 import { GOOGLE_MODELS } from '../google/google.constants';
+import { GROQ_MODELS } from '../groq/groq.constants';
 import { FoloniteAgentModel, ApiKeys } from 'src/agent/agent.types';
 
 const geminiApiKey = process.env.GEMINI_API_KEY;
 const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
 const openaiApiKey = process.env.OPENAI_API_KEY;
+const groqApiKey = process.env.GROQ_API_KEY;
 
 const proxyUrl = process.env.FOLONITE_LLM_PROXY_URL;
 
@@ -31,6 +33,7 @@ const envModels = [
   ...(anthropicApiKey ? ANTHROPIC_MODELS : []),
   ...(openaiApiKey ? OPENAI_MODELS : []),
   ...(geminiApiKey ? GOOGLE_MODELS : []),
+  ...(groqApiKey ? GROQ_MODELS : []),
 ];
 
 @Controller('tasks')
@@ -38,7 +41,7 @@ export class TasksController {
   constructor(
     private readonly tasksService: TasksService,
     private readonly messagesService: MessagesService,
-  ) {}
+  ) { }
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
@@ -72,6 +75,7 @@ export class TasksController {
     @Headers('x-anthropic-api-key') anthropicApiKeyHeader?: string,
     @Headers('x-openai-api-key') openaiApiKeyHeader?: string,
     @Headers('x-google-api-key') googleApiKeyHeader?: string,
+    @Headers('x-groq-api-key') groqApiKeyHeader?: string,
   ) {
     // Build models list from environment variables and provided API keys
     const models = [
@@ -79,6 +83,7 @@ export class TasksController {
       ...(anthropicApiKeyHeader && !anthropicApiKey ? ANTHROPIC_MODELS : []),
       ...(openaiApiKeyHeader && !openaiApiKey ? OPENAI_MODELS : []),
       ...(googleApiKeyHeader && !geminiApiKey ? GOOGLE_MODELS : []),
+      ...(groqApiKeyHeader && !groqApiKey ? GROQ_MODELS : []),
     ];
 
     if (proxyUrl) {

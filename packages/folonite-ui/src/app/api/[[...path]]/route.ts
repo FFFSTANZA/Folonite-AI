@@ -16,6 +16,15 @@ async function proxy(req: NextRequest, path: string[]): Promise<Response> {
     headers: {
       "Content-Type": "application/json",
       ...(cookies && { Cookie: cookies }),
+      ...(req.headers.get("x-anthropic-api-key") && {
+        "x-anthropic-api-key": req.headers.get("x-anthropic-api-key")!,
+      }),
+      ...(req.headers.get("x-openai-api-key") && {
+        "x-openai-api-key": req.headers.get("x-openai-api-key")!,
+      }),
+      ...(req.headers.get("x-google-api-key") && {
+        "x-google-api-key": req.headers.get("x-google-api-key")!,
+      }),
     },
     body:
       req.method === "GET" || req.method === "HEAD"

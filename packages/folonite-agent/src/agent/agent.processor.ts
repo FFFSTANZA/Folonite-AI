@@ -27,6 +27,7 @@ import { InputCaptureService } from './input-capture.service';
 import { OnEvent } from '@nestjs/event-emitter';
 import { OpenAIService } from '../openai/openai.service';
 import { GoogleService } from '../google/google.service';
+import { GroqService } from '../groq/groq.service';
 import {
   FoloniteAgentModel,
   FoloniteAgentService,
@@ -56,6 +57,7 @@ export class AgentProcessor {
     private readonly anthropicService: AnthropicService,
     private readonly openaiService: OpenAIService,
     private readonly googleService: GoogleService,
+    private readonly groqService: GroqService,
     private readonly proxyService: ProxyService,
     private readonly inputCaptureService: InputCaptureService,
   ) {
@@ -63,6 +65,7 @@ export class AgentProcessor {
       anthropic: this.anthropicService,
       openai: this.openaiService,
       google: this.googleService,
+      groq: this.groqService,
       proxy: this.proxyService,
     };
     this.logger.log('AgentProcessor initialized');
@@ -161,21 +164,21 @@ export class AgentProcessor {
       const messages = [
         ...(latestSummary
           ? [
-              {
-                id: '',
-                createdAt: new Date(),
-                updatedAt: new Date(),
-                taskId,
-                summaryId: null,
-                role: Role.USER,
-                content: [
-                  {
-                    type: MessageContentType.Text,
-                    text: latestSummary.content,
-                  },
-                ],
-              },
-            ]
+            {
+              id: '',
+              createdAt: new Date(),
+              updatedAt: new Date(),
+              taskId,
+              summaryId: null,
+              role: Role.USER,
+              content: [
+                {
+                  type: MessageContentType.Text,
+                  text: latestSummary.content,
+                },
+              ],
+            },
+          ]
           : []),
         ...unsummarizedMessages,
       ];

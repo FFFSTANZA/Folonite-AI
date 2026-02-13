@@ -14,6 +14,7 @@ export interface ApiKeys {
   anthropic?: string;
   openai?: string;
   google?: string;
+  groq?: string;
 }
 
 export interface FoloniteAgentService {
@@ -28,7 +29,7 @@ export interface FoloniteAgentService {
 }
 
 export interface FoloniteAgentModel {
-  provider: 'anthropic' | 'openai' | 'google' | 'proxy';
+  provider: 'anthropic' | 'openai' | 'google' | 'proxy' | 'groq';
   name: string;
   title: string;
   contextWindow?: number;

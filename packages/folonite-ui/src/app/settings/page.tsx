@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { ViewIcon, ViewOffIcon, Tick02Icon, Cancel01Icon, Download04Icon, SparklesIcon, CpuIcon, ZapIcon, AlertCircleIcon, ShieldCheckIcon, Key01Icon } from "@hugeicons/core-free-icons";
+import { ViewIcon, ViewOffIcon, Tick02Icon, Cancel01Icon, Download04Icon, SparklesIcon, CpuIcon, ZapIcon, AlertCircleIcon, Shield01Icon, Key01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { cn } from "@/lib/utils";
 
@@ -12,6 +12,7 @@ interface ApiKeys {
   anthropic?: string;
   openai?: string;
   google?: string;
+  groq?: string;
 }
 
 interface ProviderConfig {
@@ -23,10 +24,12 @@ interface ProviderConfig {
   iconColor: string;
   bgColor: string;
   borderColor: string;
+  allowsCustomModel?: boolean;
 }
 
 export default function SettingsPage() {
   const [apiKeys, setApiKeys] = useState<ApiKeys>({});
+  const [groqModel, setGroqModel] = useState<string>("");
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
   const [saved, setSaved] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -34,6 +37,8 @@ export default function SettingsPage() {
   useEffect(() => {
     setMounted(true);
     const storedKeys = localStorage.getItem("folonite_api_keys");
+    const storedGroqModel = localStorage.getItem("folonite_groq_model");
+    if (storedGroqModel) setGroqModel(storedGroqModel);
     if (storedKeys) {
       try {
         setApiKeys(JSON.parse(storedKeys));
@@ -45,12 +50,15 @@ export default function SettingsPage() {
 
   const handleSave = () => {
     localStorage.setItem("folonite_api_keys", JSON.stringify(apiKeys));
+    if (groqModel) localStorage.setItem("folonite_groq_model", groqModel);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
 
   const handleKeyChange = (provider: keyof ApiKeys, value: string) => {
-    setApiKeys((prev) => ({ ...prev, [provider]: value }));
+    const newKeys = { ...apiKeys, [provider]: value };
+    setApiKeys(newKeys);
+    localStorage.setItem("folonite_api_keys", JSON.stringify(newKeys));
   };
 
   const toggleShowKey = (provider: string) => {
@@ -63,7 +71,10 @@ export default function SettingsPage() {
   };
 
   const clearKey = (key: keyof ApiKeys) => {
-    setApiKeys((prev) => ({ ...prev, [key]: undefined }));
+    const newKeys = { ...apiKeys };
+    delete newKeys[key];
+    setApiKeys(newKeys);
+    localStorage.setItem("folonite_api_keys", JSON.stringify(newKeys));
   };
 
   if (!mounted) {
@@ -101,6 +112,17 @@ export default function SettingsPage() {
       bgColor: "bg-blue-500/10",
       borderColor: "border-blue-500/20",
     },
+    {
+      key: "groq",
+      name: "Groq",
+      description: "LPU Inference Engine - Llama 3 70B, Mixtral 8x7B, Gemma 7B",
+      placeholder: "gsk_...",
+      icon: ZapIcon,
+      iconColor: "text-orange-400",
+      bgColor: "bg-orange-500/10",
+      borderColor: "border-orange-500/20",
+      allowsCustomModel: true,
+    },
   ];
 
   const configuredCount = Object.values(apiKeys).filter(Boolean).length;
@@ -109,7 +131,7 @@ export default function SettingsPage() {
     <div className="flex h-screen flex-col overflow-hidden bg-background">
       {/* Header Background */}
       <div className="absolute top-0 left-0 right-0 h-48 bg-gradient-to-b from-folonite-bronze/10 to-transparent pointer-events-none" />
-      
+
       <main className="flex-1 overflow-y-auto px-4 md:px-8 pt-6 pb-10 relative z-10">
         <div className="mx-auto max-w-3xl">
           {/* Page Header */}
@@ -143,8 +165,8 @@ export default function SettingsPage() {
             {providers.map((provider) => {
               const isConfigured = !!apiKeys[provider.key];
               return (
-                <Card 
-                  key={provider.key} 
+                <Card
+                  key={provider.key}
                   className={cn(
                     "bg-secondary/20 border-white/5 overflow-hidden transition-all duration-200",
                     isConfigured && "ring-1 ring-green-500/20"
@@ -159,9 +181,9 @@ export default function SettingsPage() {
                         provider.borderColor,
                         "border"
                       )}>
-                        <HugeiconsIcon 
-                          icon={provider.icon} 
-                          className={cn("h-6 w-6", provider.iconColor)} 
+                        <HugeiconsIcon
+                          icon={provider.icon}
+                          className={cn("h-6 w-6", provider.iconColor)}
                         />
                       </div>
 
@@ -171,7 +193,7 @@ export default function SettingsPage() {
                           <h3 className="text-white font-medium">{provider.name}</h3>
                           {isConfigured && (
                             <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-green-500/10 border border-green-500/20">
-                              <HugeiconsIcon icon={ShieldCheckIcon} className="h-3 w-3 text-green-400" />
+                              <HugeiconsIcon icon={Shield01Icon} className="h-3 w-3 text-green-400" />
                               <span className="text-xs text-green-400 font-medium">Configured</span>
                             </div>
                           )}
@@ -211,6 +233,18 @@ export default function SettingsPage() {
                               />
                             </button>
                           </div>
+                          {provider.allowsCustomModel && (
+                            <div className="mt-3">
+                              <label className="text-xs text-gray-400 mb-1.5 block">Custom Model Name (Optional, defaults to llama3-70b-8192)</label>
+                              <Input
+                                type="text"
+                                placeholder="e.g. llama3-8b-8192"
+                                value={groqModel}
+                                onChange={(e) => setGroqModel(e.target.value)}
+                                className="bg-background/50 border-white/10 text-white placeholder:text-gray-600 focus-visible:ring-folonite-bronze/50"
+                              />
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -230,13 +264,13 @@ export default function SettingsPage() {
               <HugeiconsIcon icon={Cancel01Icon} className="h-4 w-4 mr-2" />
               Clear All Keys
             </Button>
-            
+
             <Button
               onClick={handleSave}
               className={cn(
                 "transition-all duration-200",
-                saved 
-                  ? "bg-green-600 hover:bg-green-700 text-white" 
+                saved
+                  ? "bg-green-600 hover:bg-green-700 text-white"
                   : "bg-folonite-bronze hover:bg-folonite-bronze-dark-7 text-white"
               )}
             >
@@ -258,9 +292,9 @@ export default function SettingsPage() {
                 <div>
                   <h4 className="text-sm font-medium text-blue-200 mb-1">Security Notice</h4>
                   <p className="text-xs text-blue-300/80 leading-relaxed">
-                    Your API keys are stored locally in your browser&apos;s localStorage and are never 
-                    sent to our servers except when making AI requests. Keys are cleared from server 
-                    memory when tasks complete. Keep your browser secure and avoid sharing your computer 
+                    Your API keys are stored locally in your browser&apos;s localStorage and are never
+                    sent to our servers except when making AI requests. Keys are cleared from server
+                    memory when tasks complete. Keep your browser secure and avoid sharing your computer
                     with untrusted parties.
                   </p>
                 </div>

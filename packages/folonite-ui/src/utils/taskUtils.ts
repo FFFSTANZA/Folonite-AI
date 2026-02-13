@@ -174,14 +174,14 @@ export async function fetchTasks(options?: {
   statuses?: string[];
 }): Promise<{ tasks: Task[]; total: number; totalPages: number }> {
   const params: Record<string, string | number> = {};
-  
+
   if (options?.page) params.page = options.page;
   if (options?.limit) params.limit = options.limit;
   if (options?.status) params.status = options.status;
   if (options?.statuses && options.statuses.length > 0) {
     params.statuses = options.statuses.join(',');
   }
-  
+
   const queryString = Object.keys(params).length > 0 ? buildQueryString(params) : "";
   const result = await apiRequest<{ tasks: Task[]; total: number; totalPages: number }>(
     `/tasks${queryString}`,
@@ -196,7 +196,7 @@ export async function fetchTasks(options?: {
 export async function fetchTaskCounts(): Promise<Record<string, number>> {
   try {
     const allTasksResult = await fetchTasks();
-    
+
     // Define the status groups
     const statusGroups = {
       ALL: Object.values(TaskStatus),
@@ -217,7 +217,7 @@ export async function fetchTaskCounts(): Promise<Record<string, number>> {
       if (groupKey === 'ALL') {
         return { groupKey, count: allTasksResult.total };
       }
-      
+
       const result = await fetchTasks({ statuses, limit: 1 });
       return { groupKey, count: result.total };
     });
@@ -255,6 +255,9 @@ export async function fetchModels(): Promise<Model[]> {
     }
     if (apiKeys.google) {
       headers["x-google-api-key"] = apiKeys.google;
+    }
+    if (apiKeys.groq) {
+      headers["x-groq-api-key"] = apiKeys.groq;
     }
 
     const response = await fetch("/api/tasks/models", {

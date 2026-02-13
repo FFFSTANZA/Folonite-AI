@@ -11,6 +11,7 @@ import { GoogleModule } from '../google/google.module';
 import { SummariesModule } from 'src/summaries/summaries.modue';
 import { AgentAnalyticsService } from './agent.analytics';
 import { ProxyModule } from 'src/proxy/proxy.module';
+import { GroqModule } from '../groq/groq.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { ProxyModule } from 'src/proxy/proxy.module';
     OpenAIModule,
     GoogleModule,
     ProxyModule,
+    GroqModule,
   ],
   providers: [
     AgentProcessor,
@@ -31,4 +33,4 @@ import { ProxyModule } from 'src/proxy/proxy.module';
   ],
   exports: [AgentProcessor],
 })
-export class AgentModule {}
+export class AgentModule { }

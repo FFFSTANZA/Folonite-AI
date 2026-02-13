@@ -62,6 +62,7 @@ export interface ApiKeys {
   anthropic?: string;
   openai?: string;
   google?: string;
+  groq?: string;
 }
 
 export interface File {
