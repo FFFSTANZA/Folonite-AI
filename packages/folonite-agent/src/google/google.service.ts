@@ -51,15 +51,24 @@ export class GoogleService implements FoloniteAgentService {
     model: string = DEFAULT_MODEL.name,
     useTools: boolean = true,
     signal?: AbortSignal,
+    apiKey?: string,
   ): Promise<FoloniteAgentResponse> {
     try {
       const maxTokens = 8192;
+
+      // Use provided API key or fall back to the one from config
+      const effectiveApiKey = apiKey || this.configService.get<string>('GEMINI_API_KEY');
+
+      // Create a new Google client with the effective API key if different
+      const googleClient = effectiveApiKey && effectiveApiKey !== this.configService.get<string>('GEMINI_API_KEY')
+        ? new GoogleGenAI({ apiKey: effectiveApiKey })
+        : this.google;
 
       // Convert our message content blocks to Anthropic's expected format
       const googleMessages = this.formatMessagesForGoogle(messages);
 
       const response: GenerateContentResponse =
-        await this.google.models.generateContent({
+        await googleClient.models.generateContent({
           model,
           contents: googleMessages,
           config: {

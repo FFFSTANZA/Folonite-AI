@@ -9,6 +9,7 @@ import {
   HttpCode,
   Query,
   HttpException,
+  Headers,
 } from '@nestjs/common';
 import { TasksService } from './tasks.service';
 import { CreateTaskDto } from './dto/create-task.dto';
@@ -18,7 +19,7 @@ import { MessagesService } from '../messages/messages.service';
 import { ANTHROPIC_MODELS } from '../anthropic/anthropic.constants';
 import { OPENAI_MODELS } from '../openai/openai.constants';
 import { GOOGLE_MODELS } from '../google/google.constants';
-import { FoloniteAgentModel } from 'src/agent/agent.types';
+import { FoloniteAgentModel, ApiKeys } from 'src/agent/agent.types';
 
 const geminiApiKey = process.env.GEMINI_API_KEY;
 const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
@@ -26,7 +27,7 @@ const openaiApiKey = process.env.OPENAI_API_KEY;
 
 const proxyUrl = process.env.FOLONITE_LLM_PROXY_URL;
 
-const models = [
+const envModels = [
   ...(anthropicApiKey ? ANTHROPIC_MODELS : []),
   ...(openaiApiKey ? OPENAI_MODELS : []),
   ...(geminiApiKey ? GOOGLE_MODELS : []),
@@ -67,7 +68,19 @@ export class TasksController {
   }
 
   @Get('models')
-  async getModels() {
+  async getModels(
+    @Headers('x-anthropic-api-key') anthropicApiKeyHeader?: string,
+    @Headers('x-openai-api-key') openaiApiKeyHeader?: string,
+    @Headers('x-google-api-key') googleApiKeyHeader?: string,
+  ) {
+    // Build models list from environment variables and provided API keys
+    const models = [
+      ...envModels,
+      ...(anthropicApiKeyHeader && !anthropicApiKey ? ANTHROPIC_MODELS : []),
+      ...(openaiApiKeyHeader && !openaiApiKey ? OPENAI_MODELS : []),
+      ...(googleApiKeyHeader && !geminiApiKey ? GOOGLE_MODELS : []),
+    ];
+
     if (proxyUrl) {
       try {
         const response = await fetch(`${proxyUrl}/model/info`, {

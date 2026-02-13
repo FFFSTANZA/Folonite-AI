@@ -9,6 +9,7 @@ import {
     TaskDaily01Icon,
     ComputerIcon,
     Settings01Icon,
+    Key01Icon,
 } from "@hugeicons/core-free-icons";
 import { cn } from "@/lib/utils";
 
@@ -41,6 +42,11 @@ export function Sidebar({ className }: SidebarProps) {
             name: "Desktop",
             href: "/desktop",
             icon: ComputerIcon,
+        },
+        {
+            name: "API Keys",
+            href: "/settings",
+            icon: Key01Icon,
         },
     ];
 

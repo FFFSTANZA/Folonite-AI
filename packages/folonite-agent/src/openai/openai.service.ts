@@ -46,13 +46,22 @@ export class OpenAIService implements FoloniteAgentService {
     model: string = DEFAULT_MODEL.name,
     useTools: boolean = true,
     signal?: AbortSignal,
+    apiKey?: string,
   ): Promise<FoloniteAgentResponse> {
     const isReasoning = model.startsWith('o');
     try {
+      // Use provided API key or fall back to the one from config
+      const effectiveApiKey = apiKey || this.configService.get<string>('OPENAI_API_KEY');
+
+      // Create a new OpenAI client with the effective API key if different
+      const openaiClient = effectiveApiKey && effectiveApiKey !== this.configService.get<string>('OPENAI_API_KEY')
+        ? new OpenAI({ apiKey: effectiveApiKey })
+        : this.openai;
+
       const openaiMessages = this.formatMessagesForOpenAI(messages);
 
       const maxTokens = 8192;
-      const response = await this.openai.responses.create(
+      const response = await openaiClient.responses.create(
         {
           model,
           max_output_tokens: maxTokens,

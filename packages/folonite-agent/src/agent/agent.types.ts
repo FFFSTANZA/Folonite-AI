@@ -10,6 +10,12 @@ export interface FoloniteAgentResponse {
   };
 }
 
+export interface ApiKeys {
+  anthropic?: string;
+  openai?: string;
+  google?: string;
+}
+
 export interface FoloniteAgentService {
   generateMessage(
     systemPrompt: string,
@@ -17,6 +23,7 @@ export interface FoloniteAgentService {
     model: string,
     useTools: boolean,
     signal?: AbortSignal,
+    apiKey?: string,
   ): Promise<FoloniteAgentResponse>;
 }
 

@@ -1,4 +1,4 @@
-import { Message, Task, Model, GroupedMessages, FileWithBase64, TaskStatus } from "@/types";
+import { Message, Task, Model, GroupedMessages, FileWithBase64, TaskStatus, ApiKeys } from "@/types";
 
 /**
  * Base configuration for API requests
@@ -125,11 +125,30 @@ export async function startTask(data: {
   description: string;
   model: Model;
   files?: FileWithBase64[];
+  apiKeys?: ApiKeys;
 }): Promise<Task | null> {
   return apiRequest<Task>("/tasks", {
     method: "POST",
     body: JSON.stringify(data),
   });
+}
+
+/**
+ * Get API keys from localStorage
+ */
+export function getStoredApiKeys(): ApiKeys {
+  if (typeof window === "undefined") {
+    return {};
+  }
+  const storedKeys = localStorage.getItem("folonite_api_keys");
+  if (storedKeys) {
+    try {
+      return JSON.parse(storedKeys);
+    } catch (e) {
+      console.error("Failed to parse stored API keys", e);
+    }
+  }
+  return {};
 }
 
 /**
@@ -222,9 +241,25 @@ export async function fetchTaskCounts(): Promise<Record<string, number>> {
 
 export async function fetchModels(): Promise<Model[]> {
   try {
+    // Get stored API keys to include in headers
+    const apiKeys = getStoredApiKeys();
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+
+    if (apiKeys.anthropic) {
+      headers["x-anthropic-api-key"] = apiKeys.anthropic;
+    }
+    if (apiKeys.openai) {
+      headers["x-openai-api-key"] = apiKeys.openai;
+    }
+    if (apiKeys.google) {
+      headers["x-google-api-key"] = apiKeys.google;
+    }
+
     const response = await fetch("/api/tasks/models", {
       method: "GET",
-      headers: { "Content-Type": "application/json" },
+      headers,
       credentials: "include",
     });
     if (!response.ok) {

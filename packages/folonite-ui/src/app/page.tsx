@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { startTask } from "@/utils/taskUtils";
+import { startTask, getStoredApiKeys, fetchModels } from "@/utils/taskUtils";
 import { Model } from "@/types";
 import { TaskList } from "@/components/tasks/TaskList";
 
@@ -30,8 +30,7 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-    fetch("/api/tasks/models")
-      .then((res) => res.json())
+    fetchModels()
       .then((data) => {
         setModels(data);
         if (data.length > 0) setSelectedModel(data[0]);
@@ -51,6 +50,7 @@ export default function Home() {
         description: string;
         model: Model;
         files?: FileWithBase64[];
+        apiKeys?: { anthropic?: string; openai?: string; google?: string };
       } = {
         description: input,
         model: selectedModel,
@@ -59,6 +59,12 @@ export default function Home() {
       // Include files if any are uploaded
       if (uploadedFiles.length > 0) {
         taskData.files = uploadedFiles;
+      }
+
+      // Include API keys from localStorage
+      const apiKeys = getStoredApiKeys();
+      if (apiKeys.anthropic || apiKeys.openai || apiKeys.google) {
+        taskData.apiKeys = apiKeys;
       }
 
       const task = await startTask(taskData);

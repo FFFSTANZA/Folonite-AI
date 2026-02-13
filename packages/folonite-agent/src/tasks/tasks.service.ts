@@ -22,10 +22,13 @@ import { AddTaskMessageDto } from './dto/add-task-message.dto';
 import { TasksGateway } from './tasks.gateway';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { ApiKeys } from '../agent/agent.types';
 
 @Injectable()
 export class TasksService {
   private readonly logger = new Logger(TasksService.name);
+  // Temporary in-memory storage for API keys (not persisted to database)
+  private taskApiKeys: Map<string, ApiKeys> = new Map();
 
   constructor(
     readonly prisma: PrismaService,
@@ -35,6 +38,20 @@ export class TasksService {
     private readonly eventEmitter: EventEmitter2,
   ) {
     this.logger.log('TasksService initialized');
+  }
+
+  /**
+   * Get API keys for a specific task
+   */
+  getTaskApiKeys(taskId: string): ApiKeys | undefined {
+    return this.taskApiKeys.get(taskId);
+  }
+
+  /**
+   * Clear API keys for a specific task
+   */
+  clearTaskApiKeys(taskId: string): void {
+    this.taskApiKeys.delete(taskId);
   }
 
   async create(createTaskDto: CreateTaskDto): Promise<Task> {
@@ -112,6 +129,12 @@ export class TasksService {
     });
 
     this.tasksGateway.emitTaskCreated(task);
+
+    // Store API keys in memory (not in database) for use during task processing
+    if (createTaskDto.apiKeys) {
+      this.taskApiKeys.set(task.id, createTaskDto.apiKeys);
+      this.logger.log(`API keys stored for task ID: ${task.id}`);
+    }
 
     return task;
   }
@@ -232,10 +255,17 @@ export class TasksService {
 
     if (updateTaskDto.status === TaskStatus.COMPLETED) {
       this.eventEmitter.emit('task.completed', { taskId: id });
+      // Clean up API keys when task is completed
+      this.clearTaskApiKeys(id);
     } else if (updateTaskDto.status === TaskStatus.NEEDS_HELP) {
       updatedTask = await this.takeOver(id);
     } else if (updateTaskDto.status === TaskStatus.FAILED) {
       this.eventEmitter.emit('task.failed', { taskId: id });
+      // Clean up API keys when task fails
+      this.clearTaskApiKeys(id);
+    } else if (updateTaskDto.status === TaskStatus.CANCELLED) {
+      // Clean up API keys when task is cancelled
+      this.clearTaskApiKeys(id);
     }
 
     this.logger.log(`Successfully updated task ID: ${id}`);
@@ -252,6 +282,9 @@ export class TasksService {
     const deletedTask = await this.prisma.task.delete({
       where: { id },
     });
+
+    // Clean up API keys
+    this.clearTaskApiKeys(id);
 
     this.logger.log(`Successfully deleted task ID: ${id}`);
 

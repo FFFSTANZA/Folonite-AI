@@ -55,6 +55,7 @@ export class ProxyService implements FoloniteAgentService {
     model: string,
     useTools: boolean = true,
     signal?: AbortSignal,
+    _apiKey?: string,
   ): Promise<FoloniteAgentResponse> {
     // Convert messages to Chat Completion format
     const chatMessages = this.formatMessagesForChatCompletion(
