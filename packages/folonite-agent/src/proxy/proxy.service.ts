@@ -43,6 +43,8 @@ export class ProxyService implements FoloniteAgentService {
     this.openai = new OpenAI({
       apiKey: 'dummy-key-for-proxy',
       baseURL: proxyUrl,
+      timeout: 120000, // 2 minute timeout
+      maxRetries: 3,
     });
   }
 

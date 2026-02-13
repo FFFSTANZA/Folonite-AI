@@ -206,14 +206,53 @@ export class AgentProcessor {
       const apiKeys = this.tasksService.getTaskApiKeys(taskId);
       const apiKey = apiKeys ? apiKeys[model.provider as keyof ApiKeys] : undefined;
 
-      agentResponse = await service.generateMessage(
-        AGENT_SYSTEM_PROMPT,
-        messages,
-        model.name,
-        true,
-        this.abortController.signal,
-        apiKey,
-      );
+      // Retry logic for LLM calls
+      let lastError: Error | null = null;
+      const maxRetries = 2;
+      
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+          this.logger.debug(`Attempting LLM call for task ${taskId}, attempt ${attempt + 1}/${maxRetries + 1}`);
+          
+          agentResponse = await service.generateMessage(
+            AGENT_SYSTEM_PROMPT,
+            messages,
+            model.name,
+            true,
+            this.abortController.signal,
+            apiKey,
+          );
+          
+          // If successful, break out of retry loop
+          break;
+        } catch (error: any) {
+          lastError = error;
+          
+          if (error?.name === 'FoloniteAgentInterrupt') {
+            throw error; // Don't retry on user abort
+          }
+          
+          // Check if it's a rate limit or transient error
+          const isRetryable = error?.status === 429 || 
+                              error?.status >= 500 || 
+                              error?.code === 'ECONNRESET' ||
+                              error?.code === 'ETIMEDOUT' ||
+                              error?.message?.includes('timeout') ||
+                              error?.message?.includes('rate limit');
+          
+          if (!isRetryable || attempt === maxRetries) {
+            throw error; // Don't retry or out of retries
+          }
+          
+          const delay = Math.pow(2, attempt) * 1000; // Exponential backoff: 1s, 2s
+          this.logger.warn(`LLM call failed, retrying in ${delay}ms: ${error.message}`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+      
+      if (!agentResponse!) {
+        throw lastError || new Error('Failed to get response from LLM');
+      }
 
       const messageContentBlocks = agentResponse.contentBlocks;
 

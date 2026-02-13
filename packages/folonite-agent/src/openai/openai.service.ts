@@ -37,6 +37,8 @@ export class OpenAIService implements FoloniteAgentService {
 
     this.openai = new OpenAI({
       apiKey: apiKey || 'dummy-key-for-initialization',
+      timeout: 120000, // 2 minute timeout
+      maxRetries: 3,
     });
   }
 
@@ -55,7 +57,11 @@ export class OpenAIService implements FoloniteAgentService {
 
       // Create a new OpenAI client with the effective API key if different
       const openaiClient = effectiveApiKey && effectiveApiKey !== this.configService.get<string>('OPENAI_API_KEY')
-        ? new OpenAI({ apiKey: effectiveApiKey })
+        ? new OpenAI({ 
+            apiKey: effectiveApiKey,
+            timeout: 120000,
+            maxRetries: 3,
+          })
         : this.openai;
 
       const openaiMessages = this.formatMessagesForOpenAI(messages);
