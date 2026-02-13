@@ -11,6 +11,7 @@ import {
   TypeTextAction,
   WaitAction,
   ScreenshotAction,
+  UiSnapshotAction,
   CursorPositionAction,
   ApplicationAction,
   PasteTextAction,
@@ -60,6 +61,8 @@ export const isTypeTextAction =
 export const isWaitAction = createActionTypeGuard<WaitAction>("wait");
 export const isScreenshotAction =
   createActionTypeGuard<ScreenshotAction>("screenshot");
+export const isUiSnapshotAction =
+  createActionTypeGuard<UiSnapshotAction>("ui_snapshot");
 export const isCursorPositionAction =
   createActionTypeGuard<CursorPositionAction>("cursor_position");
 export const isApplicationAction =
@@ -258,6 +261,23 @@ export function convertScreenshotActionToToolUseBlock(
   return createToolUseBlock("computer_screenshot", toolUseId, {});
 }
 
+export function convertUiSnapshotActionToToolUseBlock(
+  action: UiSnapshotAction,
+  toolUseId: string
+): ComputerToolUseContentBlock {
+  return createToolUseBlock(
+    "computer_ui_snapshot",
+    toolUseId,
+    conditionallyAdd(
+      {},
+      [
+        [typeof action.detail === "string", "detail", action.detail],
+        [typeof action.ocr === "boolean", "ocr", action.ocr],
+      ]
+    )
+  );
+}
+
 export function convertCursorPositionActionToToolUseBlock(
   action: CursorPositionAction,
   toolUseId: string
@@ -325,6 +345,8 @@ export function convertComputerActionToToolUseBlock(
       return convertWaitActionToToolUseBlock(action, toolUseId);
     case "screenshot":
       return convertScreenshotActionToToolUseBlock(action, toolUseId);
+    case "ui_snapshot":
+      return convertUiSnapshotActionToToolUseBlock(action, toolUseId);
     case "cursor_position":
       return convertCursorPositionActionToToolUseBlock(action, toolUseId);
     case "application":

@@ -16,6 +16,7 @@ import {
   TypeTextToolUseBlock,
   WaitToolUseBlock,
   ScreenshotToolUseBlock,
+  UiSnapshotToolUseBlock,
   CursorPositionToolUseBlock,
   DragMouseToolUseBlock,
   ScrollToolUseBlock,
@@ -457,6 +458,17 @@ export function isScreenshotToolUseBlock(
 
   const block = obj as Record<string, any>;
   return block.name === "computer_screenshot";
+}
+
+export function isUiSnapshotToolUseBlock(
+  obj: unknown
+): obj is UiSnapshotToolUseBlock {
+  if (!isComputerToolUseContentBlock(obj)) {
+    return false;
+  }
+
+  const block = obj as Record<string, any>;
+  return block.name === "computer_ui_snapshot";
 }
 
 export function isApplicationToolUseBlock(

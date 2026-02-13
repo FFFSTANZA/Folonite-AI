@@ -3,6 +3,8 @@ import { exec, spawn } from 'child_process';
 import { promisify } from 'util';
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import * as sharp from 'sharp';
+import { createWorker } from 'tesseract.js';
 import { NutService } from '../nut/nut.service';
 import {
   ComputerAction,
@@ -20,11 +22,27 @@ import {
   PasteTextAction,
   WriteFileAction,
   ReadFileAction,
+  UiSnapshotAction,
+  UiSnapshotDetail,
 } from '@folonite/shared';
+
+const UI_SNAPSHOT_DIMENSIONS: Record<UiSnapshotDetail, {
+  width: number;
+  height: number;
+}> = {
+  low: { width: 1024, height: 768 },
+  high: { width: 1280, height: 960 },
+};
+
+const OCR_TEXT_LIMIT = 4000;
+
+type OcrWorker = Awaited<ReturnType<typeof createWorker>>;
 
 @Injectable()
 export class ComputerUseService {
   private readonly logger = new Logger(ComputerUseService.name);
+  private ocrWorkerPromise?: Promise<OcrWorker>;
+  private ocrQueue: Promise<string | null> = Promise.resolve(null);
 
   constructor(private readonly nutService: NutService) {}
 
@@ -80,6 +98,9 @@ export class ComputerUseService {
       }
       case 'screenshot':
         return this.screenshot();
+
+      case 'ui_snapshot':
+        return this.uiSnapshot(params);
 
       case 'cursor_position':
         return this.cursor_position();
@@ -256,6 +277,44 @@ export class ComputerUseService {
     return { image: `${buffer.toString('base64')}` };
   }
 
+  async uiSnapshot(action: UiSnapshotAction): Promise<{
+    image: string;
+    ocrText?: string;
+    width: number;
+    height: number;
+    detail: UiSnapshotDetail;
+  }> {
+    const detail: UiSnapshotDetail = action.detail ?? 'low';
+    const includeOcr = action.ocr !== false;
+    this.logger.log(`Taking UI snapshot (${detail})`);
+
+    const buffer = await this.nutService.screendump();
+    const snapshot = await this.prepareSnapshot(buffer, detail);
+    let ocrText: string | undefined;
+
+    if (includeOcr) {
+      try {
+        const ocrBuffer = await sharp(snapshot.buffer)
+          .grayscale()
+          .normalize()
+          .sharpen()
+          .toBuffer();
+        const rawText = await this.runOcr(ocrBuffer);
+        ocrText = this.normalizeOcrText(rawText ?? undefined);
+      } catch (error) {
+        this.logger.warn(`OCR failed: ${error.message}`);
+      }
+    }
+
+    return {
+      image: snapshot.buffer.toString('base64'),
+      ocrText,
+      width: snapshot.width,
+      height: snapshot.height,
+      detail,
+    };
+  }
+
   private async cursor_position(): Promise<{ x: number; y: number }> {
     this.logger.log(`Getting cursor position`);
     return await this.nutService.getCursorPosition();
@@ -359,6 +418,82 @@ export class ComputerUseService {
 
     // Just return immediately
     return;
+  }
+
+  private async prepareSnapshot(
+    buffer: Buffer,
+    detail: UiSnapshotDetail,
+  ): Promise<{ buffer: Buffer; width: number; height: number }> {
+    const { width, height } = UI_SNAPSHOT_DIMENSIONS[detail];
+    const sharpInstance = sharp(buffer)
+      .resize({
+        width,
+        height,
+        fit: 'inside',
+        withoutEnlargement: true,
+      })
+      .png({
+        compressionLevel: 9,
+        adaptiveFiltering: true,
+        palette: true,
+      });
+
+    const metadata = await sharpInstance.metadata();
+    const resizedBuffer = await sharpInstance.toBuffer();
+
+    return {
+      buffer: resizedBuffer,
+      width: metadata.width ?? width,
+      height: metadata.height ?? height,
+    };
+  }
+
+  private async getOcrWorker(): Promise<OcrWorker> {
+    if (!this.ocrWorkerPromise) {
+      this.ocrWorkerPromise = (async () => {
+        const worker = await createWorker({
+          logger: () => undefined,
+        });
+        await worker.load();
+        await worker.loadLanguage('eng');
+        await worker.initialize('eng');
+        return worker;
+      })();
+    }
+
+    return this.ocrWorkerPromise;
+  }
+
+  private async runOcr(buffer: Buffer): Promise<string | null> {
+    const task = this.ocrQueue.then(async () => {
+      const worker = await this.getOcrWorker();
+      const result = await worker.recognize(buffer);
+      return result?.data?.text ?? null;
+    });
+
+    this.ocrQueue = task.then(() => null).catch(() => null);
+    return task;
+  }
+
+  private normalizeOcrText(text?: string | null): string | undefined {
+    if (!text) {
+      return undefined;
+    }
+
+    const cleaned = text
+      .replace(/[ \t]+\n/g, '\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+
+    if (!cleaned) {
+      return undefined;
+    }
+
+    if (cleaned.length > OCR_TEXT_LIMIT) {
+      return `${cleaned.slice(0, OCR_TEXT_LIMIT)}\n…(truncated)`;
+    }
+
+    return cleaned;
   }
 
   private async writeFile(

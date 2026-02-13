@@ -275,6 +275,28 @@ export const _screenshotTool = {
   },
 };
 
+export const _uiSnapshotTool = {
+  name: 'computer_ui_snapshot',
+  description:
+    'Captures a compressed UI snapshot for faster analysis and optionally includes OCR text for visible labels and buttons.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      detail: {
+        type: 'string' as const,
+        enum: ['low', 'high'],
+        description:
+          'Snapshot quality. Use low for faster iteration, high for finer UI inspection.',
+      },
+      ocr: {
+        type: 'boolean' as const,
+        description: 'Whether to include OCR text (defaults to true).',
+        nullable: true,
+      },
+    },
+  },
+};
+
 export const _cursorPositionTool = {
   name: 'computer_cursor_position',
   description: 'Gets the current (x, y) coordinates of the mouse cursor',
@@ -397,6 +419,7 @@ export const agentTools = [
   _pasteTextTool,
   _waitTool,
   _screenshotTool,
+  _uiSnapshotTool,
   _applicationTool,
   _cursorPositionTool,
   _setTaskStatusTool,

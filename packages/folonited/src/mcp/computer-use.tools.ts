@@ -577,6 +577,73 @@ V, W, X, Y, Z
   }
 
   @Tool({
+    name: 'computer_ui_snapshot',
+    description:
+      'Captures a compressed UI snapshot and optionally includes OCR text for quick element discovery.',
+    parameters: z.object({
+      detail: z
+        .enum(['low', 'high'])
+        .optional()
+        .describe('Snapshot quality. Low is faster; high is sharper.'),
+      ocr: z
+        .boolean()
+        .optional()
+        .describe('Whether to include OCR text (defaults to true).'),
+    }),
+  })
+  async uiSnapshot({
+    detail,
+    ocr,
+  }: {
+    detail?: 'low' | 'high';
+    ocr?: boolean;
+  }) {
+    try {
+      const snapshot = (await this.computerUse.action({
+        action: 'ui_snapshot',
+        detail,
+        ocr,
+      })) as {
+        image: string;
+        ocrText?: string;
+        width: number;
+        height: number;
+      };
+
+      const content: Array<{
+        type: string;
+        text?: string;
+        data?: string;
+        mimeType?: string;
+      }> = [];
+
+      if (snapshot.ocrText) {
+        content.push({
+          type: 'text',
+          text: `OCR (${snapshot.width}x${snapshot.height}):\n${snapshot.ocrText}`,
+        });
+      }
+
+      content.push({
+        type: 'image',
+        data: snapshot.image,
+        mimeType: 'image/png',
+      });
+
+      return { content };
+    } catch (err) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Error taking UI snapshot: ${(err as Error).message}`,
+          },
+        ],
+      };
+    }
+  }
+
+  @Tool({
     name: 'computer_cursor_position',
     description: 'Gets the current (x, y) coordinates of the mouse cursor.',
   })

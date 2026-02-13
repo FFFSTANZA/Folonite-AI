@@ -10,6 +10,8 @@ export type Application =
   | "desktop"
   | "directory";
 
+export type UiSnapshotDetail = "low" | "high";
+
 // Define individual computer action types
 export type MoveMouseAction = {
   action: "move_mouse";
@@ -85,6 +87,12 @@ export type ScreenshotAction = {
   action: "screenshot";
 };
 
+export type UiSnapshotAction = {
+  action: "ui_snapshot";
+  detail?: UiSnapshotDetail;
+  ocr?: boolean;
+};
+
 export type CursorPositionAction = {
   action: "cursor_position";
 };
@@ -119,6 +127,7 @@ export type ComputerAction =
   | PasteTextAction
   | WaitAction
   | ScreenshotAction
+  | UiSnapshotAction
   | CursorPositionAction
   | ApplicationAction
   | WriteFileAction
