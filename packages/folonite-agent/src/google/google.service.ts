@@ -112,8 +112,8 @@ export class GoogleService implements FoloniteAgentService {
           totalTokens: response.usageMetadata?.totalTokenCount || 0,
         },
       };
-    } catch (error) {
-      if (error.message.includes('AbortError')) {
+    } catch (error: any) {
+      if (error.message?.includes('AbortError') || error.name === 'AbortError') {
         throw new FoloniteAgentInterrupt();
       }
       this.logger.error(

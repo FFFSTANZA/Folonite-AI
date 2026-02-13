@@ -3,9 +3,15 @@ import { FoloniteAgentModel } from '../agent/agent.types';
 export const GROQ_MODELS: FoloniteAgentModel[] = [
     {
         provider: 'groq',
-        name: 'llama3-70b-8192',
-        title: 'Llama 3 70B',
-        contextWindow: 8192,
+        name: 'llama-3.3-70b-versatile',
+        title: 'Llama 3.3 70B Versatile',
+        contextWindow: 128000,
+    },
+    {
+        provider: 'groq',
+        name: 'llama-3.1-8b-instant',
+        title: 'Llama 3.1 8B Instant',
+        contextWindow: 128000,
     },
     {
         provider: 'groq',
@@ -15,9 +21,15 @@ export const GROQ_MODELS: FoloniteAgentModel[] = [
     },
     {
         provider: 'groq',
-        name: 'gemma-7b-it',
-        title: 'Gemma 7B',
+        name: 'gemma2-9b-it',
+        title: 'Gemma 2 9B IT',
         contextWindow: 8192,
+    },
+    {
+        provider: 'groq',
+        name: 'deepseek-r1-distill-llama-70b',
+        title: 'DeepSeek R1 Distill Llama 70B',
+        contextWindow: 128000,
     },
 ];
 

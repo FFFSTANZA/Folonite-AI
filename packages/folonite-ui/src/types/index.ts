@@ -26,6 +26,7 @@ export interface Model {
   provider: string;
   name: string;
   title: string;
+  contextWindow?: number;
 }
 
 // Task related enums and types

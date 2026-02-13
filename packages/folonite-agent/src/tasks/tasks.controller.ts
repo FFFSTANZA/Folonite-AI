@@ -10,6 +10,7 @@ import {
   Query,
   HttpException,
   Headers,
+  Logger,
 } from '@nestjs/common';
 import { TasksService } from './tasks.service';
 import { CreateTaskDto } from './dto/create-task.dto';
@@ -29,15 +30,10 @@ const groqApiKey = process.env.GROQ_API_KEY;
 
 const proxyUrl = process.env.FOLONITE_LLM_PROXY_URL;
 
-const envModels = [
-  ...(anthropicApiKey ? ANTHROPIC_MODELS : []),
-  ...(openaiApiKey ? OPENAI_MODELS : []),
-  ...(geminiApiKey ? GOOGLE_MODELS : []),
-  ...(groqApiKey ? GROQ_MODELS : []),
-];
-
 @Controller('tasks')
 export class TasksController {
+  private readonly logger = new Logger(TasksController.name);
+
   constructor(
     private readonly tasksService: TasksService,
     private readonly messagesService: MessagesService,
@@ -78,14 +74,30 @@ export class TasksController {
     @Headers('x-groq-api-key') groqApiKeyHeader?: string,
   ) {
     // Build models list from environment variables and provided API keys
-    const models = [
-      ...envModels,
-      ...(anthropicApiKeyHeader && !anthropicApiKey ? ANTHROPIC_MODELS : []),
-      ...(openaiApiKeyHeader && !openaiApiKey ? OPENAI_MODELS : []),
-      ...(googleApiKeyHeader && !geminiApiKey ? GOOGLE_MODELS : []),
-      ...(groqApiKeyHeader && !groqApiKey ? GROQ_MODELS : []),
-    ];
+    // Environment variables take precedence, but client keys can add models if env vars are not set
+    const models: FoloniteAgentModel[] = [];
 
+    // Add Anthropic models if API key is available (env or client)
+    if (anthropicApiKey || anthropicApiKeyHeader) {
+      models.push(...ANTHROPIC_MODELS);
+    }
+
+    // Add OpenAI models if API key is available (env or client)
+    if (openaiApiKey || openaiApiKeyHeader) {
+      models.push(...OPENAI_MODELS);
+    }
+
+    // Add Google models if API key is available (env or client)
+    if (geminiApiKey || googleApiKeyHeader) {
+      models.push(...GOOGLE_MODELS);
+    }
+
+    // Add Groq models if API key is available (env or client)
+    if (groqApiKey || groqApiKeyHeader) {
+      models.push(...GROQ_MODELS);
+    }
+
+    // If proxy is configured, fetch models from proxy
     if (proxyUrl) {
       try {
         const response = await fetch(`${proxyUrl}/model/info`, {
@@ -96,35 +108,28 @@ export class TasksController {
         });
 
         if (!response.ok) {
-          throw new HttpException(
-            `Failed to fetch models from proxy: ${response.statusText}`,
-            HttpStatus.BAD_GATEWAY,
+          this.logger?.warn?.(`Failed to fetch models from proxy: ${response.statusText}`);
+        } else {
+          const proxyModels = await response.json();
+
+          // Map proxy response to FoloniteAgentModel format
+          const mappedProxyModels: FoloniteAgentModel[] = proxyModels.data.map(
+            (model: any) => ({
+              provider: 'proxy',
+              name: model.litellm_params.model,
+              title: model.model_name,
+              contextWindow: 128000,
+            }),
           );
+
+          models.push(...mappedProxyModels);
         }
-
-        const proxyModels = await response.json();
-
-        // Map proxy response to FoloniteAgentModel format
-        const models: FoloniteAgentModel[] = proxyModels.data.map(
-          (model: any) => ({
-            provider: 'proxy',
-            name: model.litellm_params.model,
-            title: model.model_name,
-            contextWindow: 128000,
-          }),
-        );
-
-        return models;
-      } catch (error) {
-        if (error instanceof HttpException) {
-          throw error;
-        }
-        throw new HttpException(
-          `Error fetching models: ${error.message}`,
-          HttpStatus.INTERNAL_SERVER_ERROR,
-        );
+      } catch (error: any) {
+        // Log but don't fail - return other models
+        console.warn(`Error fetching proxy models: ${error.message}`);
       }
     }
+
     return models;
   }
 

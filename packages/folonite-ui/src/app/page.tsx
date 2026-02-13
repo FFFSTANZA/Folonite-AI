@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { ChatInput } from "@/components/messages/ChatInput";
 import { useRouter } from "next/navigation";
 import {
@@ -29,39 +29,56 @@ export default function Home() {
   const [models, setModels] = useState<Model[]>([]);
   const [selectedModel, setSelectedModel] = useState<Model | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<FileWithBase64[]>([]);
+  const [isLoadingModels, setIsLoadingModels] = useState(true);
   const router = useRouter();
 
-  useEffect(() => {
-    fetchModels()
-      .then((data) => {
-        // Check for custom Groq model
-        const storedGroqModel = localStorage.getItem("folonite_groq_model");
-        const apiKeys = getStoredApiKeys();
+  const loadModels = useCallback(async () => {
+    setIsLoadingModels(true);
+    try {
+      const data = await fetchModels();
+      
+      // Check for custom Groq model
+      const storedGroqModel = localStorage.getItem("folonite_groq_model");
+      const apiKeys = getStoredApiKeys();
 
-        let allModels = [...data];
+      let allModels = [...data];
 
-        // If we have a custom Groq model and the API key is set, add or replace it in the list
-        if (storedGroqModel && apiKeys.groq) {
-          // Remove existing default Groq models if we want to prioritize the custom one, 
-          // or just ensure the custom one is available.
-          // Let's add it to the top if it doesn't exist, or replace if it matches a default name but we want to be sure.
-          // Actually, let's just add it as a new option if it's not there.
-          const existingIndex = allModels.findIndex(m => m.provider === 'groq' && m.name === storedGroqModel);
+      // If we have a custom Groq model and the API key is set, add it to the list
+      if (storedGroqModel && apiKeys.groq) {
+        const existingIndex = allModels.findIndex(m => m.provider === 'groq' && m.name === storedGroqModel);
 
-          if (existingIndex === -1) {
-            allModels.unshift({
-              provider: 'groq',
-              name: storedGroqModel,
-              title: `Groq: ${storedGroqModel} (Custom)`
-            });
-          }
+        if (existingIndex === -1) {
+          allModels.unshift({
+            provider: 'groq',
+            name: storedGroqModel,
+            title: `Groq: ${storedGroqModel} (Custom)`
+          });
         }
+      }
 
-        setModels(allModels);
-        if (allModels.length > 0) setSelectedModel(allModels[0]);
-      })
-      .catch((err) => console.error("Failed to load models", err));
-  }, []);
+      setModels(allModels);
+      if (allModels.length > 0 && !selectedModel) {
+        setSelectedModel(allModels[0]);
+      }
+    } catch (err) {
+      console.error("Failed to load models", err);
+    } finally {
+      setIsLoadingModels(false);
+    }
+  }, [selectedModel]);
+
+  useEffect(() => {
+    loadModels();
+  }, [loadModels]);
+
+  // Reload models when window gains focus (in case API keys were updated)
+  useEffect(() => {
+    const handleFocus = () => {
+      loadModels();
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [loadModels]);
 
   const handleSend = async () => {
     if (!input.trim()) return;
@@ -175,19 +192,42 @@ export default function Home() {
                       models.find((m) => m.name === val) || null,
                     )
                   }
+                  disabled={isLoadingModels || models.length === 0}
                 >
                   <SelectTrigger className="w-auto border-none bg-transparent hover:bg-white/5 rounded-full px-2 py-1 h-auto text-xs text-foreground focus:ring-0 focus:ring-offset-0 gap-2 transition-colors">
-                    <SelectValue placeholder="Select a model" />
+                    {isLoadingModels ? (
+                      <span className="text-muted-foreground">Loading...</span>
+                    ) : models.length === 0 ? (
+                      <span className="text-muted-foreground">No models available</span>
+                    ) : (
+                      <SelectValue placeholder="Select a model" />
+                    )}
                   </SelectTrigger>
-                  <SelectContent className="bg-popover border-border min-w-[200px]">
-                    {models.map((m) => (
-                      <SelectItem key={m.name} value={m.name} className="text-sm">
-                        <div className="flex items-center gap-2">
-                          {getProviderIcon(m.provider)}
-                          <span>{m.title}</span>
+                  <SelectContent className="bg-popover border-border min-w-[280px] max-h-[300px]">
+                    {/* Group models by provider */}
+                    {['anthropic', 'openai', 'google', 'groq', 'proxy'].map(provider => {
+                      const providerModels = models.filter(m => m.provider === provider);
+                      if (providerModels.length === 0) return null;
+                      
+                      return (
+                        <div key={provider}>
+                          <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                            {provider === 'anthropic' ? 'Claude (Anthropic)' : 
+                             provider === 'openai' ? 'ChatGPT (OpenAI)' :
+                             provider === 'google' ? 'Gemini (Google)' :
+                             provider === 'groq' ? 'Groq' : 'Proxy'}
+                          </div>
+                          {providerModels.map((m) => (
+                            <SelectItem key={m.name} value={m.name} className="text-sm">
+                              <div className="flex items-center gap-2">
+                                {getProviderIcon(m.provider)}
+                                <span>{m.title}</span>
+                              </div>
+                            </SelectItem>
+                          ))}
                         </div>
-                      </SelectItem>
-                    ))}
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               </div>

@@ -36,6 +36,8 @@ export class AnthropicService implements FoloniteAgentService {
 
     this.anthropic = new Anthropic({
       apiKey: apiKey || 'dummy-key-for-initialization',
+      timeout: 120000, // 2 minute timeout for long responses
+      maxRetries: 3,
     });
   }
 
@@ -55,7 +57,11 @@ export class AnthropicService implements FoloniteAgentService {
 
       // Create a new Anthropic client with the effective API key if different
       const anthropicClient = effectiveApiKey && effectiveApiKey !== this.configService.get<string>('ANTHROPIC_API_KEY')
-        ? new Anthropic({ apiKey: effectiveApiKey })
+        ? new Anthropic({ 
+            apiKey: effectiveApiKey,
+            timeout: 120000,
+            maxRetries: 3,
+          })
         : this.anthropic;
 
       // Convert our message content blocks to Anthropic's expected format
@@ -95,7 +101,7 @@ export class AnthropicService implements FoloniteAgentService {
             response.usage.input_tokens + response.usage.output_tokens,
         },
       };
-    } catch (error) {
+    } catch (error: any) {
       this.logger.log(error);
 
       if (error instanceof APIUserAbortError) {

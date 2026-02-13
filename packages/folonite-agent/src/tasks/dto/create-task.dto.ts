@@ -40,6 +40,10 @@ export class ApiKeysDto {
   @IsOptional()
   @IsString()
   google?: string;
+
+  @IsOptional()
+  @IsString()
+  groq?: string;
 }
 
 export class CreateTaskDto {

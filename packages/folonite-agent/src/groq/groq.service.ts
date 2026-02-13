@@ -13,7 +13,7 @@ import {
 } from '@folonite/shared';
 import { DEFAULT_MODEL } from './groq.constants';
 import { Message, Role } from '@prisma/client';
-import { openaiTools } from '../openai/openai.tools'; // Reusing OpenAI tools definition as Groq supports OpenAI tool format
+import { groqTools } from './groq.tools'; // Using Groq-compatible Chat Completion tools
 import {
     FoloniteAgentService,
     FoloniteAgentInterrupt,
@@ -37,6 +37,8 @@ export class GroqService implements FoloniteAgentService {
         this.groq = new OpenAI({
             apiKey: apiKey || 'dummy-key-for-initialization',
             baseURL: 'https://api.groq.com/openai/v1',
+            timeout: 120000, // 2 minute timeout for long responses
+            maxRetries: 3,
         });
     }
 
@@ -56,13 +58,15 @@ export class GroqService implements FoloniteAgentService {
             const groqClient = effectiveApiKey && effectiveApiKey !== this.configService.get<string>('GROQ_API_KEY')
                 ? new OpenAI({
                     apiKey: effectiveApiKey,
-                    baseURL: 'https://api.groq.com/openai/v1'
+                    baseURL: 'https://api.groq.com/openai/v1',
+                    timeout: 120000,
+                    maxRetries: 3,
                 })
                 : this.groq;
 
             const groqMessages = this.formatMessagesForGroq(messages);
 
-            const maxTokens = 8192; // Groq specific limits might vary by model, but this is a safe default
+            const maxTokens = 8192;
 
             const response = await groqClient.chat.completions.create(
                 {
@@ -71,7 +75,7 @@ export class GroqService implements FoloniteAgentService {
                         { role: 'system', content: systemPrompt },
                         ...groqMessages
                     ] as any,
-                    tools: useTools ? openaiTools : undefined,
+                    tools: useTools ? groqTools : undefined,
                     tool_choice: useTools ? 'auto' : undefined,
                     max_tokens: maxTokens,
                     temperature: 0.7,
@@ -122,8 +126,6 @@ export class GroqService implements FoloniteAgentService {
                         });
                     } else if (isImageContentBlock(block)) {
                         // Groq vision support varies, for now treating as unsupported or checking model
-                        // Assuming Llama 3.2 vision or similar might support it, but for standard models we might need to skip or warn
-                        // For simplicity, we'll try to pass it if the model supports it, but standard OpenAI format is:
                         groqMessages.push({
                             role: 'user',
                             content: [
@@ -142,8 +144,6 @@ export class GroqService implements FoloniteAgentService {
                 for (const block of messageContentBlocks) {
                     switch (block.type) {
                         case MessageContentType.Text: {
-                            // Combine sequential text blocks if needed or push individually
-                            // OpenAI chat format expects specific structure
                             if (message.role === Role.USER) {
                                 groqMessages.push({
                                     role: 'user',
@@ -190,7 +190,7 @@ export class GroqService implements FoloniteAgentService {
                                     groqMessages.push({
                                         role: 'tool',
                                         tool_call_id: toolResult.tool_use_id,
-                                        content: "screenshot captured", // Placeholder as direct image in tool role might vary
+                                        content: "screenshot captured",
                                     });
                                 }
                             });
@@ -198,10 +198,7 @@ export class GroqService implements FoloniteAgentService {
                         }
 
                         case MessageContentType.Thinking:
-                            // Groq usually doesn't output thinking blocks in the standard API unless specifically supported/requested
-                            // For input (history), we can check if we want to include it. 
-                            // OpenAI format doesn't have a specific 'thinking' role/type standardly used in this way yet.
-                            // We'll skip adding it to history sent to Groq for now to avoid errors, or add as text.
+                            // Skip adding thinking blocks to history sent to Groq
                             break;
 
                         default:
