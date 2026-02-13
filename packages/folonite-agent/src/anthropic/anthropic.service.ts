@@ -45,9 +45,18 @@ export class AnthropicService implements FoloniteAgentService {
     model: string = DEFAULT_MODEL.name,
     useTools: boolean = true,
     signal?: AbortSignal,
+    apiKey?: string,
   ): Promise<FoloniteAgentResponse> {
     try {
       const maxTokens = 8192;
+
+      // Use provided API key or fall back to the one from config
+      const effectiveApiKey = apiKey || this.configService.get<string>('ANTHROPIC_API_KEY');
+
+      // Create a new Anthropic client with the effective API key if different
+      const anthropicClient = effectiveApiKey && effectiveApiKey !== this.configService.get<string>('ANTHROPIC_API_KEY')
+        ? new Anthropic({ apiKey: effectiveApiKey })
+        : this.anthropic;
 
       // Convert our message content blocks to Anthropic's expected format
       const anthropicMessages = this.formatMessagesForAnthropic(messages);
@@ -58,7 +67,7 @@ export class AnthropicService implements FoloniteAgentService {
       };
 
       // Make the API call
-      const response = await this.anthropic.messages.create(
+      const response = await anthropicClient.messages.create(
         {
           model,
           max_tokens: maxTokens * 2,

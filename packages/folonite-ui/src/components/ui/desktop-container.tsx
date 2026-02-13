@@ -73,10 +73,10 @@ export const DesktopContainer: React.FC<DesktopContainerProps> = ({
 
   return (
     <div
-      className={`border-border/40 flex w-full flex-col rounded-t-lg border-t border-r border-l ${className}`}
+      className={`border-border/40 flex w-full h-full flex-col rounded-xl border shadow-lg overflow-hidden ${className}`}
     >
       {/* Header */}
-      <div className="bg-secondary/50 border-border/40 flex items-center justify-between rounded-t-lg border-b px-4 py-2">
+      <div className="bg-secondary/50 border-border/40 flex items-center justify-between border-b px-4 py-2.5 shrink-0">
         {/* Status Header */}
         <div className="flex items-center gap-2">
           <VirtualDesktopStatusHeader status={status} />
@@ -86,13 +86,16 @@ export const DesktopContainer: React.FC<DesktopContainerProps> = ({
         <div className="flex items-center gap-2">{children}</div>
       </div>
 
-      <div ref={containerRef} className="flex aspect-[4/3] overflow-hidden">
+      {/* Content Area - Fills remaining space */}
+      <div ref={containerRef} className="flex-1 flex items-center justify-center overflow-hidden bg-black/20">
         <div
           style={{
-            width: `${containerSize.width}px`,
-            height: `${containerSize.height}px`,
+            width: containerSize.width > 0 ? `${containerSize.width}px` : '100%',
+            height: containerSize.height > 0 ? `${containerSize.height}px` : '100%',
             maxWidth: "100%",
+            maxHeight: "100%",
           }}
+          className="relative"
         >
           {screenshot ? (
             <ScreenshotViewer

@@ -10,9 +10,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { startTask } from "@/utils/taskUtils";
+import { startTask, getStoredApiKeys, fetchModels } from "@/utils/taskUtils";
 import { Model } from "@/types";
 import { TaskList } from "@/components/tasks/TaskList";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { SparklesIcon, CpuIcon, ZapIcon } from "@hugeicons/core-free-icons";
 
 interface FileWithBase64 {
   name: string;
@@ -30,8 +32,7 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-    fetch("/api/tasks/models")
-      .then((res) => res.json())
+    fetchModels()
       .then((data) => {
         setModels(data);
         if (data.length > 0) setSelectedModel(data[0]);
@@ -46,28 +47,30 @@ export default function Home() {
 
     try {
       if (!selectedModel) throw new Error("No model selected");
-      // Send request to start a new task
       const taskData: {
         description: string;
         model: Model;
         files?: FileWithBase64[];
+        apiKeys?: { anthropic?: string; openai?: string; google?: string };
       } = {
         description: input,
         model: selectedModel,
       };
 
-      // Include files if any are uploaded
       if (uploadedFiles.length > 0) {
         taskData.files = uploadedFiles;
+      }
+
+      const apiKeys = getStoredApiKeys();
+      if (apiKeys.anthropic || apiKeys.openai || apiKeys.google) {
+        taskData.apiKeys = apiKeys;
       }
 
       const task = await startTask(taskData);
 
       if (task && task.id) {
-        // Redirect to the task page
         router.push(`/tasks/${task.id}`);
       } else {
-        // Handle error
         console.error("Failed to create task");
       }
     } catch (error) {
@@ -81,57 +84,111 @@ export default function Home() {
     setUploadedFiles(files);
   };
 
-  return (
-    <div className="flex h-screen flex-col overflow-hidden bg-background">
-      <main className="flex flex-1 flex-col items-center justify-center overflow-y-auto p-4 md:p-8">
-        <div className="flex w-full max-w-2xl flex-col items-center gap-8">
+  const getProviderIcon = (provider: string) => {
+    switch (provider) {
+      case "anthropic":
+        return <HugeiconsIcon icon={SparklesIcon} className="h-3.5 w-3.5 text-amber-400" />;
+      case "openai":
+        return <HugeiconsIcon icon={CpuIcon} className="h-3.5 w-3.5 text-emerald-400" />;
+      case "google":
+        return <HugeiconsIcon icon={ZapIcon} className="h-3.5 w-3.5 text-blue-400" />;
+      default:
+        return null;
+    }
+  };
 
-          {/* Greeting */}
-          <div className="flex flex-col items-center space-y-2 text-center">
-            <div className="mb-2 h-16 w-16 relative">
-              {/* Optional Logo placeholder or Icon */}
+  return (
+    <div className="flex h-screen flex-col overflow-hidden bg-background relative">
+      {/* Subtle gradient background */}
+      <div className="absolute inset-0 bg-gradient-to-br from-folonite-bronze/5 via-transparent to-folonite-bronze/10 pointer-events-none" />
+      <div className="absolute top-0 left-1/4 w-96 h-96 bg-folonite-bronze/5 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-folonite-bronze/5 rounded-full blur-3xl pointer-events-none" />
+      
+      <main className="flex flex-1 flex-col items-center justify-center overflow-y-auto p-4 md:p-8 relative z-10">
+        <div className="flex w-full max-w-3xl flex-col items-center gap-10">
+          {/* Logo & Greeting */}
+          <div className="flex flex-col items-center space-y-4 text-center">
+            <div className="relative">
+              <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-folonite-bronze to-folonite-bronze-dark-7 flex items-center justify-center shadow-lg shadow-folonite-bronze/20">
+                <span className="text-3xl font-bold text-white">F</span>
+              </div>
+              <div className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-green-500 border-2 border-background flex items-center justify-center">
+                <div className="h-2 w-2 rounded-full bg-white animate-pulse" />
+              </div>
             </div>
-            <h1 className="text-3xl md:text-4xl font-semibold text-white tracking-tight">
-              What can I help you with?
-            </h1>
+            <div className="space-y-2">
+              <h1 className="text-4xl md:text-5xl font-semibold text-white tracking-tight">
+                What can I help you with?
+              </h1>
+              <p className="text-muted-foreground text-sm md:text-base max-w-md mx-auto">
+                Give me a task and I&apos;ll work on it using the desktop. I can write code, analyze files, and more.
+              </p>
+            </div>
           </div>
 
           {/* Chat Interface */}
-          <div className="w-full flex flex-col gap-3">
-            <ChatInput
-              input={input}
-              isLoading={isLoading}
-              onInputChange={setInput}
-              onSend={handleSend}
-              onFileUpload={handleFileUpload}
-              minLines={1}
-            />
+          <div className="w-full flex flex-col gap-4">
+            <div className="relative">
+              <ChatInput
+                input={input}
+                isLoading={isLoading}
+                onInputChange={setInput}
+                onSend={handleSend}
+                onFileUpload={handleFileUpload}
+                minLines={1}
+              />
+            </div>
 
-            <div className="flex items-center justify-start px-1">
-              <Select
-                value={selectedModel?.name}
-                onValueChange={(val) =>
-                  setSelectedModel(
-                    models.find((m) => m.name === val) || null,
-                  )
-                }
-              >
-                <SelectTrigger className="w-auto border-none bg-transparent hover:bg-secondary/50 rounded-full px-3 py-1.5 h-auto text-xs text-muted-foreground focus:ring-0 focus:ring-offset-0 gap-2">
-                  <SelectValue placeholder="Select a model" />
-                </SelectTrigger>
-                <SelectContent className="bg-popover border-border">
-                  {models.map((m) => (
-                    <SelectItem key={m.name} value={m.name}>
-                      {m.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            {/* Model Selector */}
+            <div className="flex items-center justify-center">
+              <div className="flex items-center gap-2 bg-secondary/30 rounded-full px-4 py-2 border border-white/5">
+                <span className="text-xs text-muted-foreground">Model:</span>
+                <Select
+                  value={selectedModel?.name}
+                  onValueChange={(val) =>
+                    setSelectedModel(
+                      models.find((m) => m.name === val) || null,
+                    )
+                  }
+                >
+                  <SelectTrigger className="w-auto border-none bg-transparent hover:bg-white/5 rounded-full px-2 py-1 h-auto text-xs text-foreground focus:ring-0 focus:ring-offset-0 gap-2 transition-colors">
+                    <SelectValue placeholder="Select a model" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover border-border min-w-[200px]">
+                    {models.map((m) => (
+                      <SelectItem key={m.name} value={m.name} className="text-sm">
+                        <div className="flex items-center gap-2">
+                          {getProviderIcon(m.provider)}
+                          <span>{m.title}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
 
-          {/* Task List - Subtle / Bottom */}
-          <div className="w-full mt-8">
+          {/* Quick Actions */}
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            {[
+              "Write a Python script",
+              "Analyze this data",
+              "Create a website",
+              "Debug my code",
+            ].map((suggestion) => (
+              <button
+                key={suggestion}
+                onClick={() => setInput(suggestion)}
+                className="px-4 py-2 rounded-full bg-secondary/20 border border-white/5 text-xs text-muted-foreground hover:bg-secondary/40 hover:text-foreground transition-all duration-200"
+              >
+                {suggestion}
+              </button>
+            ))}
+          </div>
+
+          {/* Task List */}
+          <div className="w-full mt-4">
             <TaskList
               className="w-full"
               title="Recent Tasks"

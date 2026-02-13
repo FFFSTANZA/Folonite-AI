@@ -58,6 +58,12 @@ export interface FileWithBase64 {
   size: number;
 }
 
+export interface ApiKeys {
+  anthropic?: string;
+  openai?: string;
+  google?: string;
+}
+
 export interface File {
   id: string;
   name: string;

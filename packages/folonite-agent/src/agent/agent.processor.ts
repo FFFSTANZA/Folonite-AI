@@ -31,6 +31,7 @@ import {
   FoloniteAgentModel,
   FoloniteAgentService,
   FoloniteAgentResponse,
+  ApiKeys,
 } from './agent.types';
 import {
   AGENT_SYSTEM_PROMPT,
@@ -198,12 +199,17 @@ export class AgentProcessor {
         return;
       }
 
+      // Get API keys for this task if provided
+      const apiKeys = this.tasksService.getTaskApiKeys(taskId);
+      const apiKey = apiKeys ? apiKeys[model.provider as keyof ApiKeys] : undefined;
+
       agentResponse = await service.generateMessage(
         AGENT_SYSTEM_PROMPT,
         messages,
         model.name,
         true,
         this.abortController.signal,
+        apiKey,
       );
 
       const messageContentBlocks = agentResponse.contentBlocks;
@@ -261,6 +267,7 @@ export class AgentProcessor {
             model.name,
             false,
             this.abortController.signal,
+            apiKey,
           );
 
           const summaryContentBlocks = summaryResponse.contentBlocks;
@@ -316,6 +323,9 @@ export class AgentProcessor {
           const type = block.input.type?.toUpperCase() as TaskType;
           const priority = block.input.priority?.toUpperCase() as TaskPriority;
 
+          // Pass API keys to the new task
+          const currentApiKeys = this.tasksService.getTaskApiKeys(taskId);
+
           await this.tasksService.create({
             description: block.input.description,
             type,
@@ -325,6 +335,7 @@ export class AgentProcessor {
             }),
             model: task.model,
             priority,
+            ...(currentApiKeys && { apiKeys: currentApiKeys }),
           });
 
           generatedToolResults.push({

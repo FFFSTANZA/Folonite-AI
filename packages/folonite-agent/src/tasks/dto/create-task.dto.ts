@@ -28,6 +28,20 @@ export class TaskFileDto {
   size: number;
 }
 
+export class ApiKeysDto {
+  @IsOptional()
+  @IsString()
+  anthropic?: string;
+
+  @IsOptional()
+  @IsString()
+  openai?: string;
+
+  @IsOptional()
+  @IsString()
+  google?: string;
+}
+
 export class CreateTaskDto {
   @IsNotEmpty()
   @IsString()
@@ -57,4 +71,9 @@ export class CreateTaskDto {
   @ValidateNested({ each: true })
   @Type(() => TaskFileDto)
   files?: TaskFileDto[];
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ApiKeysDto)
+  apiKeys?: ApiKeysDto;
 }
