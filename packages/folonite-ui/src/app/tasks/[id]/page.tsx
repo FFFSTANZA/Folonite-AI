@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useRef } from "react";
-import { Header } from "@/components/layout/Header";
 import { ChatContainer } from "@/components/messages/ChatContainer";
 import { DesktopContainer } from "@/components/ui/desktop-container";
 import { useChatSession } from "@/hooks/useChatSession";
@@ -118,8 +117,6 @@ export default function TaskPage() {
 
   return (
     <div className="flex h-screen flex-col overflow-hidden">
-      <Header />
-
       <main className="m-2 flex-1 overflow-hidden px-2 py-4">
         <div className="grid h-full grid-cols-7 gap-4">
           {/* Main container */}

@@ -174,7 +174,13 @@ RUN apt-get update && \
         git build-essential && \
     rm -rf /var/lib/apt/lists/*
 
+
 COPY ./shared/ /folonite/shared/
+
+# Install shared dependencies
+WORKDIR /folonite/shared
+RUN npm install
+
 COPY ./folonited/ /folonite/folonited/
 WORKDIR /folonite/folonited
 RUN npm install --build-from-source

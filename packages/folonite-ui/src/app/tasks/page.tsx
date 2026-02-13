@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Header } from "@/components/layout/Header";
 import { TaskItem } from "@/components/tasks/TaskItem";
 import { TaskTabs, TabKey, TAB_CONFIGS } from "@/components/tasks/TaskTabs";
 import { Pagination } from "@/components/ui/pagination";
@@ -113,11 +112,9 @@ function TasksPageContent() {
 
   return (
     <div className="flex h-screen flex-col overflow-hidden">
-      <Header />
-
       <main className="flex-1 overflow-scroll px-6 pt-6 pb-10">
         <div className="mx-auto max-w-3xl">
-          <h1 className="mb-6 text-xl font-medium">Tasks</h1>
+          <h1 className="mb-6 text-xl font-medium text-white">Tasks</h1>
 
           {!isLoading && (
             <TaskTabs
@@ -130,15 +127,15 @@ function TasksPageContent() {
           {isLoading ? (
             <div className="p-8 text-center">
               <div className="border-folonite-bronze-light-5 border-t-folonite-bronze mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-4"></div>
-              <p className="text-gray-500">Loading tasks...</p>
+              <p className="text-gray-400">Loading tasks...</p>
             </div>
           ) : tasks.length === 0 ? (
             <div className="bg-folonite-bronze-light-2 border-folonite-bronze-light-7 rounded-xl border p-8 text-center">
               <div className="flex flex-col items-center justify-center">
-                <h3 className="text-folonite-bronze-light-12 mb-1 text-lg font-medium">
+                <h3 className="text-white mb-1 text-lg font-medium">
                   No tasks yet
                 </h3>
-                <p className="text-folonite-bronze-light-11 mb-6 text-sm">
+                <p className="text-gray-400 mb-6 text-sm">
                   Get started by creating a first task
                 </p>
                 <Link href="/">

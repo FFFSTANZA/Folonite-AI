@@ -91,16 +91,16 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task }) => {
 
   return (
     <Link href={`/tasks/${task.id}`} className="block">
-      <div className="bg-folonite-bronze-light-2 border-folonite-bronze-light-7 hover:bg-folonite-bronze-light-3 flex min-h-24 items-start rounded-lg border p-5 transition-colors">
+      <div className="bg-secondary/30 border-white/5 hover:bg-secondary/60 flex min-h-24 items-start rounded-lg border p-5 transition-colors">
         <div className="mb-0.5 flex-1 space-y-2">
           <div className="flex items-center justify-start space-x-2">
             <StatusIcon status={task.status} />
-            <div className="text-byhtebot-bronze-dark-7 text-sm font-medium">
+            <div className="text-white text-sm font-medium">
               {capitalizeFirstChar(task.description)}
             </div>
           </div>
           <div className="ml-7 flex items-center justify-start space-x-1.5 text-xs">
-            <span className="text-folonite-bronze-light-10">
+            <span className="text-gray-400">
               {formatDate(task.createdAt)}
             </span>
           </div>

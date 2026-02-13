@@ -1,8 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
-import Image from "next/image";
-import { Header } from "@/components/layout/Header";
+import React, { useState, useEffect } from "react";
 import { ChatInput } from "@/components/messages/ChatInput";
 import { useRouter } from "next/navigation";
 import {
@@ -15,24 +13,6 @@ import {
 import { startTask } from "@/utils/taskUtils";
 import { Model } from "@/types";
 import { TaskList } from "@/components/tasks/TaskList";
-
-interface StockPhotoProps {
-  src: string;
-  alt?: string;
-}
-
-const StockPhoto: React.FC<StockPhotoProps> = ({
-  src,
-  alt = "Decorative image",
-}) => {
-  return (
-    <div className="h-full w-full overflow-hidden rounded-lg bg-white">
-      <div className="relative h-full w-full">
-        <Image src={src} alt={alt} fill className="object-cover" priority />
-      </div>
-    </div>
-  );
-};
 
 interface FileWithBase64 {
   name: string;
@@ -48,11 +28,6 @@ export default function Home() {
   const [selectedModel, setSelectedModel] = useState<Model | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<FileWithBase64[]>([]);
   const router = useRouter();
-  const [activePopoverIndex, setActivePopoverIndex] = useState<number | null>(
-    null,
-  );
-  const popoverRef = useRef<HTMLDivElement>(null);
-  const buttonsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetch("/api/tasks/models")
@@ -63,36 +38,6 @@ export default function Home() {
       })
       .catch((err) => console.error("Failed to load models", err));
   }, []);
-
-  // Close popover when clicking outside or pressing ESC
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        popoverRef.current &&
-        !popoverRef.current.contains(event.target as Node) &&
-        buttonsRef.current &&
-        !buttonsRef.current.contains(event.target as Node)
-      ) {
-        setActivePopoverIndex(null);
-      }
-    };
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setActivePopoverIndex(null);
-      }
-    };
-
-    if (activePopoverIndex !== null) {
-      document.addEventListener("mousedown", handleClickOutside);
-      document.addEventListener("keydown", handleKeyDown);
-    }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [activePopoverIndex]);
 
   const handleSend = async () => {
     if (!input.trim()) return;
@@ -137,117 +82,63 @@ export default function Home() {
   };
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden">
-      <Header />
+    <div className="flex h-screen flex-col overflow-hidden bg-background">
+      <main className="flex flex-1 flex-col items-center justify-center overflow-y-auto p-4 md:p-8">
+        <div className="flex w-full max-w-2xl flex-col items-center gap-8">
 
-      <main className="flex flex-1 flex-col overflow-hidden">
-        {/* Desktop grid layout (50/50 split) - only visible on large screens */}
-        <div className="hidden h-full p-8 lg:grid lg:grid-cols-2 lg:gap-8">
-          {/* Main content area */}
-          <div className="flex flex-col items-center overflow-y-auto">
-            <div className="flex w-full max-w-xl flex-col items-center">
-              <div className="mb-6 flex w-full flex-col items-start justify-start">
-                <h1 className="text-folonite-bronze-light-12 mb-1 text-2xl">
-                  What can I help you get done?
-                </h1>
-              </div>
+          {/* Greeting */}
+          <div className="flex flex-col items-center space-y-2 text-center">
+            <div className="mb-2 h-16 w-16 relative">
+              {/* Optional Logo placeholder or Icon */}
+            </div>
+            <h1 className="text-3xl md:text-4xl font-semibold text-white tracking-tight">
+              What can I help you with?
+            </h1>
+          </div>
 
-              <div className="bg-folonite-bronze-light-2 border-folonite-bronze-light-7 mb-10 w-full rounded-2xl border p-2">
-                <ChatInput
-                  input={input}
-                  isLoading={isLoading}
-                  onInputChange={setInput}
-                  onSend={handleSend}
-                  onFileUpload={handleFileUpload}
-                  minLines={3}
-                />
-                <div className="mt-2">
-                  <Select
-                    value={selectedModel?.name}
-                    onValueChange={(val) =>
-                      setSelectedModel(
-                        models.find((m) => m.name === val) || null,
-                      )
-                    }
-                  >
-                    <SelectTrigger className="w-auto">
-                      <SelectValue placeholder="Select a model" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {models.map((m) => (
-                        <SelectItem key={m.name} value={m.name}>
-                          {m.title}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+          {/* Chat Interface */}
+          <div className="w-full flex flex-col gap-3">
+            <ChatInput
+              input={input}
+              isLoading={isLoading}
+              onInputChange={setInput}
+              onSend={handleSend}
+              onFileUpload={handleFileUpload}
+              minLines={1}
+            />
 
-              <TaskList
-                className="w-full"
-                title="Latest Tasks"
-                description="You'll see tasks that are completed, scheduled, or require your attention."
-              />
+            <div className="flex items-center justify-start px-1">
+              <Select
+                value={selectedModel?.name}
+                onValueChange={(val) =>
+                  setSelectedModel(
+                    models.find((m) => m.name === val) || null,
+                  )
+                }
+              >
+                <SelectTrigger className="w-auto border-none bg-transparent hover:bg-secondary/50 rounded-full px-3 py-1.5 h-auto text-xs text-muted-foreground focus:ring-0 focus:ring-offset-0 gap-2">
+                  <SelectValue placeholder="Select a model" />
+                </SelectTrigger>
+                <SelectContent className="bg-popover border-border">
+                  {models.map((m) => (
+                    <SelectItem key={m.name} value={m.name}>
+                      {m.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
-          {/* Stock photo area - centered in its grid cell */}
-          <div className="flex items-center justify-center px-6 pt-6">
-            <div className="aspect-square h-full w-full max-w-md xl:max-w-2xl">
-              <StockPhoto src="/stock-1.png" alt="Folonite stock image" />
-            </div>
-          </div>
-        </div>
-
-        {/* Mobile layout - only visible on small/medium screens */}
-        <div className="flex h-full flex-col lg:hidden">
-          <div className="flex flex-1 flex-col items-center overflow-y-auto px-4 pt-10">
-            <div className="flex w-full max-w-xl flex-col items-center pb-10">
-              <div className="mb-6 flex w-full flex-col items-start justify-start">
-                <h1 className="text-folonite-bronze-light-12 mb-1 text-2xl">
-                  What can I help you get done?
-                </h1>
-              </div>
-
-              <div className="bg-folonite-bronze-light-2 border-folonite-bronze-light-5 borderw-full mb-10 rounded-2xl p-2">
-                <ChatInput
-                  input={input}
-                  isLoading={isLoading}
-                  onInputChange={setInput}
-                  onSend={handleSend}
-                  onFileUpload={handleFileUpload}
-                  minLines={3}
-                />
-                <div className="mt-2">
-                  <Select
-                    value={selectedModel?.name}
-                    onValueChange={(val) =>
-                      setSelectedModel(
-                        models.find((m) => m.name === val) || null,
-                      )
-                    }
-                  >
-                    <SelectTrigger className="w-auto">
-                      <SelectValue placeholder="Select a model" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {models.map((m) => (
-                        <SelectItem key={m.name} value={m.name}>
-                          {m.title}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <TaskList
-                className="w-full"
-                title="Latest Tasks"
-                description="You'll see tasks that are completed, scheduled, or require your attention."
-              />
-            </div>
+          {/* Task List - Subtle / Bottom */}
+          <div className="w-full mt-8">
+            <TaskList
+              className="w-full"
+              title="Recent Tasks"
+              description=""
+              showHeader={true}
+              limit={3}
+            />
           </div>
         </div>
       </main>

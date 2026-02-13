@@ -73,10 +73,10 @@ export const DesktopContainer: React.FC<DesktopContainerProps> = ({
 
   return (
     <div
-      className={`border-folonite-bronze-light-7 flex w-full flex-col rounded-t-lg border-t border-r border-l ${className}`}
+      className={`border-border/40 flex w-full flex-col rounded-t-lg border-t border-r border-l ${className}`}
     >
       {/* Header */}
-      <div className="bg-folonite-bronze-light-2 border-folonite-bronze-light-7 flex items-center justify-between rounded-t-lg border-b px-4 py-2">
+      <div className="bg-secondary/50 border-border/40 flex items-center justify-between rounded-t-lg border-b px-4 py-2">
         {/* Status Header */}
         <div className="flex items-center gap-2">
           <VirtualDesktopStatusHeader status={status} />

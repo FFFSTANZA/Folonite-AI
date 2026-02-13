@@ -1,9 +1,7 @@
 import type React from "react";
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
-
-const inter = Inter({ subsets: ["latin"] });
+import { Sidebar } from "@/components/Sidebar";
 
 export const metadata: Metadata = {
   title: "Folonite",
@@ -17,7 +15,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>{children}</body>
+      <body className={`font-sans flex h-screen overflow-hidden bg-background text-foreground`}>
+        <Sidebar className="hidden md:flex" />
+        <div className="flex flex-1 flex-col overflow-hidden">
+          {children}
+        </div>
+      </body>
     </html>
   );
 }

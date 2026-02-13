@@ -34,7 +34,7 @@ export function ChatInput({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedFiles, setSelectedFiles] = useState<FileWithBase64[]>([]);
   const [errorMessage, setErrorMessage] = useState<string>("");
-  
+
   const MAX_FILES = 5;
   const MAX_FILE_SIZE = 30 * 1024 * 1024; // 30MB per file in bytes
 
@@ -46,7 +46,7 @@ export function ChatInput({
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
-    
+
     setErrorMessage("");
 
     // Check max files limit
@@ -55,7 +55,7 @@ export function ChatInput({
       e.target.value = '';
       return;
     }
-    
+
 
     // Check individual file sizes
     const oversizedFiles: string[] = [];
@@ -65,7 +65,7 @@ export function ChatInput({
         oversizedFiles.push(`${file.name} (${formatFileSize(file.size)})`);
       }
     }
-    
+
     if (oversizedFiles.length > 0) {
       setErrorMessage(`File(s) exceed 30MB limit: ${oversizedFiles.join(', ')}`);
       e.target.value = '';
@@ -77,7 +77,7 @@ export function ChatInput({
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       const base64 = await convertToBase64(file);
-      
+
       newFiles.push({
         name: file.name,
         base64: base64,
@@ -88,7 +88,7 @@ export function ChatInput({
 
     const updatedFiles = [...selectedFiles, ...newFiles];
     setSelectedFiles(updatedFiles);
-    
+
     if (onFileUpload) {
       onFileUpload(updatedFiles);
     }
@@ -110,7 +110,7 @@ export function ChatInput({
     const updatedFiles = selectedFiles.filter((_, i) => i !== index);
     setSelectedFiles(updatedFiles);
     setErrorMessage("");
-    
+
     if (onFileUpload) {
       onFileUpload(updatedFiles);
     }
@@ -138,19 +138,17 @@ export function ChatInput({
 
     // Calculate minimum height based on minLines
     const lineHeight = 24; // approximate line height in pixels
-    const minHeight = lineHeight * minLines + 12;
+    const minHeight = lineHeight * minLines + 24; // + padding
 
     // Set height to scrollHeight or minHeight, whichever is larger
     const newHeight = Math.max(textarea.scrollHeight, minHeight);
     textarea.style.height = `${newHeight}px`;
   }, [input, minLines]);
 
-  // Determine button position based on minLines
-  const buttonPositionClass =
-    minLines > 1 ? "bottom-1.5" : "top-1/2 -translate-y-1/2";
+
 
   return (
-    <div>
+    <div className="w-full max-w-3xl mx-auto">
       <input
         ref={fileInputRef}
         type="file"
@@ -159,16 +157,16 @@ export function ChatInput({
         className="hidden"
         accept="*/*"
       />
-      
+
       {errorMessage && (
-        <div className="mb-2 rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">
+        <div className="mb-2 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-400 border border-red-500/20">
           {errorMessage}
         </div>
       )}
-      
+
       {selectedFiles.length > 0 && (
-        <div className="mb-2">
-          <div className="mb-1 flex items-center justify-between text-xs text-gray-500">
+        <div className="mb-3 px-1">
+          <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
             <span>{selectedFiles.length} / {MAX_FILES} files</span>
             <span>Max 30MB per file</span>
           </div>
@@ -176,17 +174,17 @@ export function ChatInput({
             {selectedFiles.map((file, index) => (
               <div
                 key={index}
-                className="flex items-center gap-1 rounded-md bg-gray-100 px-2 py-1 text-sm"
+                className="flex items-center gap-2 rounded-lg bg-secondary px-3 py-1.5 text-sm text-foreground ring-1 ring-white/10"
               >
-                <span className="max-w-[200px] truncate">{file.name}</span>
+                <span className="max-w-[200px] truncate bg-transparent">{file.name}</span>
                 <button
                   type="button"
                   onClick={() => removeFile(index)}
-                  className="ml-1 rounded-sm hover:bg-gray-200"
+                  className="rounded-full p-0.5 hover:bg-white/10 transition-colors"
                 >
                   <HugeiconsIcon
                     icon={Cancel01Icon}
-                    className="h-3 w-3 text-gray-600"
+                    className="h-3 w-3 text-muted-foreground"
                   />
                 </button>
               </div>
@@ -194,18 +192,20 @@ export function ChatInput({
           </div>
         </div>
       )}
-      
-      <form onSubmit={handleSubmit} className="relative">
+
+      <form onSubmit={handleSubmit} className="relative group">
         <textarea
           ref={textareaRef}
           placeholder={placeholder}
           value={input}
           onChange={(e) => onInputChange(e.target.value)}
           className={cn(
-            "placeholder:text-folonite-bronze-light-10 w-full rounded-lg py-2 pr-16 pl-3 placeholder:text-[13px]",
-            "file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-folonite-bronze-light-7 flex min-w-0 border bg-transparent text-base shadow-xs transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
-            "aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
-            "resize-none overflow-hidden",
+            "w-full rounded-[26px] py-4 pr-24 pl-5",
+            "bg-secondary/50 border border-white/5 text-foreground placeholder:text-muted-foreground/50",
+            "focus:outline-none focus:ring-1 focus:ring-white/10 focus:bg-secondary/80",
+            "resize-none overflow-hidden min-h-[56px] transition-all duration-200 ease-in-out",
+            "shadow-lg hover:shadow-xl hover:bg-secondary/60",
+            "text-base md:text-[15px] leading-relaxed"
           )}
           disabled={isLoading}
           rows={1}
@@ -216,34 +216,40 @@ export function ChatInput({
             }
           }}
         />
-        <div className={`absolute right-2 ${buttonPositionClass} flex items-center gap-1`}>
+        <div className={`absolute right-2 bottom-2 flex items-center gap-2 bg-transparent p-1`}>
           <Button
             type="button"
             variant="ghost"
             size="icon"
-            className="h-6 w-6 cursor-pointer rounded-sm hover:bg-gray-100"
+            className="h-9 w-9 cursor-pointer rounded-full hover:bg-white/10 text-muted-foreground transition-all"
             onClick={triggerFileInput}
             disabled={isLoading}
           >
             <HugeiconsIcon
               icon={Attachment01Icon}
-              className="h-4 w-4 text-gray-600"
+              className="h-5 w-5"
             />
           </Button>
-          
+
           {isLoading ? (
-            <div className="border-folonite-bronze-light-7 border-t-primary h-5 w-5 animate-spin rounded-full border-2" />
+            <div className="h-9 w-9 flex items-center justify-center">
+              <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
+            </div>
           ) : (
             <Button
               type="submit"
-              variant="ghost"
               size="icon"
-              className="bg-folonite-bronze-dark-7 hover:bg-folonite-bronze-dark-6 h-6 w-6 cursor-pointer rounded-sm"
-              disabled={isLoading}
+              className={cn(
+                "h-9 w-9 rounded-full transition-all duration-200 shadow-sm flex items-center justify-center",
+                input.trim()
+                  ? "bg-white text-black hover:bg-gray-200"
+                  : "bg-white/10 text-white/50 cursor-not-allowed"
+              )}
+              disabled={isLoading || !input.trim()}
             >
               <HugeiconsIcon
                 icon={ArrowRight02Icon}
-                className="h-4 w-4 text-white"
+                className="h-5 w-5"
               />
             </Button>
           )}

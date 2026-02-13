@@ -8,6 +8,11 @@ WORKDIR /app
 COPY ./shared ./shared
 COPY ./folonite-agent/ ./folonite-agent/
 
+
+# Install shared dependencies first
+WORKDIR /app/shared
+RUN npm install
+
 WORKDIR /app/folonite-agent
 
 # Install dependencies

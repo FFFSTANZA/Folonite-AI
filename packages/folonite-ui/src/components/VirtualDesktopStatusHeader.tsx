@@ -33,7 +33,7 @@ const statusConfig: Record<VirtualDesktopStatus, StatusConfig> = {
       </span>
     ),
     text: "Live Desktop View",
-    gradient: "from-gray-700 to-gray-900",
+    gradient: "from-white to-zinc-300",
     subtext: "",
   },
   running: {
@@ -45,7 +45,7 @@ const statusConfig: Record<VirtualDesktopStatus, StatusConfig> = {
           width={15}
           height={15}
         />
-      </span>
+      </span >
     ),
     text: "Running",
     gradient: "from-green-700 to-green-900",
@@ -167,8 +167,8 @@ export const VirtualDesktopStatusHeader: React.FC<
           style={
             config.gradient
               ? {
-                  backgroundImage: `linear-gradient(to right, var(--tw-gradient-stops))`,
-                }
+                backgroundImage: `linear-gradient(to right, var(--tw-gradient-stops))`,
+              }
               : undefined
           }
         >

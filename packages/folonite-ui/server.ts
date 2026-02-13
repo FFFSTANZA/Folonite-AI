@@ -26,8 +26,25 @@ app
 
     const vncProxy = createProxyServer({ changeOrigin: true, ws: true });
 
+    // Handle proxy errors to prevent server crash
+    vncProxy.on("error", (err, req, res) => {
+      console.error("VNC Proxy Error:", err);
+      if (res && "writeHead" in res) {
+        res.writeHead(500, { "Content-Type": "text/plain" });
+        res.end("Something went wrong with the proxy.");
+      }
+    });
+
     const expressApp = express();
     const server = createServer(expressApp);
+
+    // Get fallback URL for VNC
+    const getVncUrl = () => {
+      return (
+        process.env.FOLONITE_DESKTOP_VNC_URL ||
+        "http://folonite-desktop:9990/websockify"
+      );
+    };
 
     // WebSocket proxy for Socket.IO connections to backend
     const tasksProxy = createProxyMiddleware({
@@ -39,9 +56,10 @@ app
     // Apply HTTP proxies
     expressApp.use("/api/proxy/tasks", tasksProxy);
     expressApp.use("/api/proxy/websockify", (req, res) => {
-      console.log("Proxying websockify request");
+      console.log("Proxying websockify HTTP request");
+      const vncUrl = getVncUrl();
+      const targetUrl = new URL(vncUrl);
       // Rewrite path
-      const targetUrl = new URL(FOLONITE_DESKTOP_VNC_URL!);
       req.url =
         targetUrl.pathname +
         (req.url?.replace(/^\/api\/proxy\/websockify/, "") || "");
@@ -65,11 +83,12 @@ app
       }
 
       if (pathname.startsWith("/api/proxy/websockify")) {
-        const targetUrl = new URL(FOLONITE_DESKTOP_VNC_URL!);
+        const vncUrl = getVncUrl();
+        const targetUrl = new URL(vncUrl);
         request.url =
           targetUrl.pathname +
           (request.url?.replace(/^\/api\/proxy\/websockify/, "") || "");
-        console.log("Proxying websockify upgrade request: ", request.url);
+        console.log("VNC Proxy upgrade: ", request.url, " -> ", targetUrl.host);
         return vncProxy.ws(request, socket as any, head, {
           target: `${targetUrl.protocol}//${targetUrl.host}`,
         });

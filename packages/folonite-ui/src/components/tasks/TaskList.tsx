@@ -14,9 +14,9 @@ interface TaskListProps {
   showHeader?: boolean;
 }
 
-export const TaskList: React.FC<TaskListProps> = ({ 
-  limit = 5, 
-  className = "", 
+export const TaskList: React.FC<TaskListProps> = ({
+  limit = 5,
+  className = "",
   title = "Latest Tasks",
   description,
   showHeader = true,
@@ -26,8 +26,8 @@ export const TaskList: React.FC<TaskListProps> = ({
 
   // WebSocket handlers for real-time updates
   const handleTaskUpdate = useCallback((updatedTask: Task) => {
-    setTasks(prev => 
-      prev.map(task => 
+    setTasks(prev =>
+      prev.map(task =>
         task.id === updatedTask.id ? updatedTask : task
       )
     );
@@ -71,20 +71,20 @@ export const TaskList: React.FC<TaskListProps> = ({
     <div className={className}>
       {showHeader && (
         <div className="mb-6 flex flex-col gap-1">
-          <h2 className="text-base font-medium">{title}</h2>
-          <p className="text-sm text-folonite-bronze-light-11">{description}</p>
+          <h2 className="text-base font-medium text-white">{title}</h2>
+          <p className="text-sm text-gray-400">{description}</p>
         </div>
       )}
-      
+
       {isLoading ? (
         <div className="p-4 text-center">
-          <div className="animate-spin h-6 w-6 border-4 border-folonite-bronze-light-5 border-t-folonite-bronze rounded-full mx-auto mb-2"></div>
-          <p className="text-gray-500 text-sm">Loading tasks...</p>
+          <div className="animate-spin h-6 w-6 border-4 border-zinc-700 border-t-white rounded-full mx-auto mb-2"></div>
+          <p className="text-gray-400 text-sm">Loading tasks...</p>
         </div>
       ) : tasks.length === 0 ? (
-        <div className="p-4 text-center border border-dashed border-folonite-bronze-light-5 rounded-lg">
-          <p className="text-gray-500 text-sm">No tasks available</p>
-          <p className="text-gray-400 text-xs mt-1">Your completed tasks will appear here</p>
+        <div className="p-4 text-center border border-dashed border-zinc-800 rounded-lg">
+          <p className="text-gray-400 text-sm">No tasks available</p>
+          <p className="text-gray-500 text-xs mt-1">Your completed tasks will appear here</p>
         </div>
       ) : (
         <div className="space-y-3">

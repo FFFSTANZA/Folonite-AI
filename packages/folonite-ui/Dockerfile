@@ -16,6 +16,10 @@ WORKDIR /app
 COPY ./shared ./shared
 COPY ./folonite-ui/ ./folonite-ui
 
+# Install shared dependencies first
+WORKDIR /app/shared
+RUN npm install
+
 WORKDIR /app/folonite-ui
 
 # Install dependencies
