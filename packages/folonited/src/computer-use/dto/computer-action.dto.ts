@@ -233,6 +233,23 @@ export class ReadFileActionDto extends BaseActionDto {
   path: string;
 }
 
+export class InspectUiActionDto extends BaseActionDto {
+  @IsIn(['inspect_ui'])
+  action: 'inspect_ui';
+}
+
+export class SearchUiActionDto extends BaseActionDto {
+  @IsIn(['search_ui'])
+  action: 'search_ui';
+
+  @IsString()
+  query: string;
+
+  @IsOptional()
+  @IsString()
+  role?: string;
+}
+
 // Union type for all computer actions
 export type ComputerActionDto =
   | MoveMouseActionDto
@@ -251,4 +268,6 @@ export type ComputerActionDto =
   | CursorPositionActionDto
   | ApplicationActionDto
   | WriteFileActionDto
-  | ReadFileActionDto;
+  | ReadFileActionDto
+  | InspectUiActionDto
+  | SearchUiActionDto;

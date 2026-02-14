@@ -120,13 +120,19 @@ export async function handleComputerToolUse(
     logger.debug('Processing UI inspection request');
     try {
       const uiTree = await inspectUi();
+
+      // Use formatted text if available (more token-efficient)
+      const displayText = uiTree.formatted
+        ? uiTree.formatted
+        : `Current UI State:\n${JSON.stringify(uiTree.tree, null, 2)}`;
+
       return {
         type: MessageContentType.ToolResult,
         tool_use_id: block.id,
         content: [
           {
             type: MessageContentType.Text,
-            text: `Current UI State:\n${JSON.stringify(uiTree, null, 2)}`,
+            text: displayText,
           },
         ],
       };
