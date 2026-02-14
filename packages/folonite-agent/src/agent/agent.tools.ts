@@ -434,6 +434,74 @@ export const _readFileTool = {
   },
 };
 
+export const _detectElementsTool = {
+  name: 'computer_detect_elements',
+  description:
+    'Uses computer vision to detect UI elements (buttons, inputs, text) from the current screenshot. Returns element locations with confidence scores and an annotated image with numbered markers.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {},
+  },
+};
+
+export const _setOfMarksTool = {
+  name: 'computer_set_of_marks',
+  description:
+    'Creates a Set-of-Marks visual annotation of the UI. Returns a screenshot with numbered markers on interactive elements, and a mapping of numbers to element details including exact coordinates. Use this for precise element targeting.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      mode: {
+        type: 'string' as const,
+        enum: ['axtree', 'vision', 'hybrid'],
+        description: 'Mode: axtree (accessibility tree), vision (CV detection), or hybrid (both)',
+      },
+    },
+  },
+};
+
+export const _waitForStabilizationTool = {
+  name: 'computer_wait_for_stabilization',
+  description:
+    'Waits for the UI to stabilize (no significant visual changes). Useful after actions that trigger animations, loading, or page transitions. Returns when UI is stable or timeout occurs.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      timeout: {
+        type: 'integer' as const,
+        description: 'Maximum time to wait in milliseconds (default: 5000)',
+        default: 5000,
+      },
+    },
+  },
+};
+
+export const _predictActionTool = {
+  name: 'computer_predict_action',
+  description:
+    'Analyzes the current UI state and suggests the most likely next actions to achieve a goal. Returns ranked action predictions with confidence scores and target coordinates.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      goal: {
+        type: 'string' as const,
+        description: 'The goal or task to accomplish',
+      },
+    },
+    required: ['goal'],
+  },
+};
+
+export const _analyzeUiTool = {
+  name: 'computer_analyze_ui',
+  description:
+    'Performs comprehensive UI analysis combining accessibility tree, computer vision, and Set-of-Marks. Returns interactive elements, text content, visual annotations, and a natural language summary.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {},
+  },
+};
+
 /**
  * Export all tools as an array
  */
@@ -455,6 +523,11 @@ export const agentTools = [
   _cursorPositionTool,
   _inspectUiTool,
   _searchUiTool,
+  _detectElementsTool,
+  _setOfMarksTool,
+  _waitForStabilizationTool,
+  _predictActionTool,
+  _analyzeUiTool,
   _setTaskStatusTool,
   _createTaskTool,
   _readFileTool,
