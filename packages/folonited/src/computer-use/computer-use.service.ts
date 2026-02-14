@@ -6,6 +6,8 @@ import * as path from 'path';
 import * as sharp from 'sharp';
 import { createWorker } from 'tesseract.js';
 import { NutService } from '../nut/nut.service';
+import { AccessibilityService } from './accessibility.service';
+import { VisionService } from './vision.service';
 import {
   ComputerAction,
   MoveMouseAction,
@@ -26,6 +28,11 @@ import {
   UiSnapshotDetail,
   InspectUiAction,
   SearchUiAction,
+  DetectElementsAction,
+  SetOfMarksAction,
+  WaitForStabilizationAction,
+  PredictActionAction,
+  AnalyzeUiAction,
 } from '@folonite/shared';
 
 const UI_SNAPSHOT_DIMENSIONS: Record<UiSnapshotDetail, {
@@ -46,7 +53,11 @@ export class ComputerUseService {
   private ocrWorkerPromise?: Promise<OcrWorker>;
   private ocrQueue: Promise<string | null> = Promise.resolve(null);
 
-  constructor(private readonly nutService: NutService) { }
+  constructor(
+    private readonly nutService: NutService,
+    private readonly accessibilityService: AccessibilityService,
+    private readonly visionService: VisionService,
+  ) { }
 
   async action(params: ComputerAction): Promise<any> {
     this.logger.log(`Executing computer action: ${params.action}`);
@@ -124,6 +135,26 @@ export class ComputerUseService {
 
       case 'read_file': {
         return this.readFile(params);
+      }
+
+      case 'detect_elements': {
+        return this.detectElements(params);
+      }
+
+      case 'set_of_marks': {
+        return this.setOfMarks(params);
+      }
+
+      case 'wait_for_stabilization': {
+        return this.waitForStabilization(params);
+      }
+
+      case 'predict_action': {
+        return this.predictAction(params);
+      }
+
+      case 'analyze_ui': {
+        return this.analyzeUi(params);
       }
 
       default:
@@ -330,124 +361,76 @@ export class ComputerUseService {
 
   private async inspectUi(): Promise<any> {
     this.logger.log(`Inspecting UI State via AXTree`);
-    const execAsync = promisify(exec);
 
     try {
-      // 1. Try to get semantic AXTree using the python script
-      try {
-        const scriptPath = path.join(process.cwd(), 'scripts/dump_ax_tree.py');
-        const { stdout: axTreeOutput } = await execAsync(
-          `sudo -u user DISPLAY=:0.0 python3 "${scriptPath}"`,
-          { timeout: 10000 },
-        );
-        const axTree = JSON.parse(axTreeOutput);
-        if (!axTree.error) {
-          return {
-            type: 'axtree',
-            tree: axTree,
-            timestamp: new Date().toISOString(),
-          };
-        }
-        this.logger.warn(`AXTree script error: ${axTree.error}`);
-      } catch (axError) {
-        this.logger.warn(`Failed to get AXTree: ${axError.message}`);
-      }
+      // Clear cache to get fresh state
+      this.accessibilityService.clearCache();
 
-      // 2. Fallback to window list if AXTree fails
-      this.logger.log(`Falling back to window list inspection`);
-      const { stdout } = await execAsync('sudo -u user wmctrl -lG');
+      // Get formatted tree for LLM consumption (more compact)
+      const formattedTree = await this.accessibilityService.formatTreeForLlm(false);
 
-      const windows = stdout
-        .split('\n')
-        .filter((line) => line.trim().length > 0)
-        .map((line) => {
-          const parts = line.split(/\s+/);
-          const title = parts.slice(7).join(' ');
-          return {
-            id: parts[0],
-            x: parseInt(parts[2], 10),
-            y: parseInt(parts[3], 10),
-            width: parseInt(parts[4], 10),
-            height: parseInt(parts[5], 10),
-            title: title,
-          };
-        });
-
-      // Get screen resolution
-      const { stdout: xrandrOutput } = await execAsync(
-        "sudo -u user xrandr | grep '*' | awk '{print $1}'",
-      );
-      const resolution = xrandrOutput.trim().split('\n')[0] || '1024x768';
+      // Also get the raw tree for structured data
+      const uiTree = await this.accessibilityService.getUiTree(false);
 
       return {
-        type: 'window_list',
-        resolution,
-        windows,
-        timestamp: new Date().toISOString(),
+        type: 'axtree',
+        tree: uiTree.tree,
+        formatted: formattedTree,
+        source: uiTree.source,
+        timestamp: uiTree.timestamp,
       };
     } catch (error) {
       this.logger.error(`Error inspecting UI: ${error.message}`);
+      // Return a valid structure that won't break searchUi
       return {
-        error: 'Failed to inspect UI',
-        message: error.message,
+        type: 'axtree',
+        tree: [],
+        formatted: 'UI inspection failed: ' + error.message,
+        source: 'error',
+        timestamp: new Date().toISOString(),
       };
     }
   }
 
   private async searchUi(action: SearchUiAction): Promise<any> {
-    this.logger.log(`Searching UI for: ${action.query}`);
-    const uiState = await this.inspectUi();
+    this.logger.log(`Searching UI for: "${action.query}"${action.role ? ` (role: ${action.role})` : ''}`);
 
-    if (uiState.error) {
-      return uiState;
+    try {
+      // Clear cache for fresh search
+      this.accessibilityService.clearCache();
+
+      const result = await this.accessibilityService.searchElements(
+        action.query,
+        action.role,
+        { maxResults: 50, useCache: false },
+      );
+
+      return {
+        query: action.query,
+        role: action.role,
+        count: result.count,
+        matches: result.matches.map((m) => ({
+          name: m.name,
+          role: m.role,
+          rect: m.rect,
+          description: m.description,
+          states: m.states,
+          path: m.path,
+        })),
+        source: result.source,
+      };
+    } catch (error) {
+      this.logger.error(`UI search failed: ${error.message}`);
+      return {
+        query: action.query,
+        role: action.role,
+        count: 0,
+        matches: [],
+        error: 'Search failed',
+        message: error.message,
+        source: 'error',
+      };
     }
-
-    const { query, role } = action;
-    const matches: any[] = [];
-
-    const searchNode = (node: any) => {
-      const nameMatch =
-        node.name && node.name.toLowerCase().includes(query.toLowerCase());
-      const roleMatch =
-        !role || (node.role && node.role.toLowerCase() === role.toLowerCase());
-
-      if (nameMatch && roleMatch) {
-        matches.push({
-          name: node.name,
-          role: node.role,
-          rect: node.rect,
-          description: node.description,
-        });
-      }
-
-      if (node.children) {
-        node.children.forEach(searchNode);
-      }
-    };
-
-    if (uiState.type === 'axtree' && uiState.tree) {
-      uiState.tree.forEach(searchNode);
-    } else if (uiState.type === 'window_list' && uiState.windows) {
-      uiState.windows.forEach((win: any) => {
-        if (
-          win.title &&
-          win.title.toLowerCase().includes(query.toLowerCase())
-        ) {
-          matches.push({
-            name: win.title,
-            role: 'window',
-            rect: { x: win.x, y: win.y, width: win.width, height: win.height },
-          });
-        }
-      });
-    }
-
-    return {
-      query,
-      role,
-      count: matches.length,
-      matches,
-    };
   }
 
   private async application(action: ApplicationAction): Promise<void> {
@@ -763,6 +746,138 @@ export class ComputerUseService {
       return {
         success: false,
         message: `Error reading file: ${error.message}`,
+      };
+    }
+  }
+
+  // New advanced vision-based methods
+
+  private async detectElements(_action: DetectElementsAction): Promise<any> {
+    this.logger.log('Detecting UI elements with computer vision');
+    try {
+      const result = await this.visionService.detectElements();
+      return {
+        success: true,
+        elementCount: result.elements.length,
+        elements: result.elements,
+        annotatedImage: result.annotatedImage,
+      };
+    } catch (error) {
+      this.logger.error(`Element detection failed: ${error.message}`);
+      return {
+        success: false,
+        error: error.message,
+        elements: [],
+      };
+    }
+  }
+
+  private async setOfMarks(action: SetOfMarksAction): Promise<any> {
+    this.logger.log(`Creating Set-of-Marks (mode: ${action.mode || 'auto'})`);
+    try {
+      let result;
+
+      if (action.mode === 'axtree') {
+        // Get AXTree first, then create marks
+        const uiTree = await this.accessibilityService.getUiTree();
+        result = await this.visionService.createSetOfMarks(uiTree);
+      } else if (action.mode === 'vision') {
+        // Use CV detection only
+        const elements = await this.visionService.detectElements();
+        result = await this.visionService.createSetOfMarks(undefined, elements.elements);
+      } else {
+        // Hybrid or auto: use both
+        result = await this.visionService.createSetOfMarks();
+      }
+
+      if (!result) {
+        throw new Error('Failed to create Set-of-Marks');
+      }
+
+      return {
+        success: true,
+        elementCount: result.elementCount,
+        elementMap: result.elementMap,
+        legend: result.legend,
+        annotatedImage: result.annotatedImage,
+      };
+    } catch (error) {
+      this.logger.error(`Set-of-Marks creation failed: ${error.message}`);
+      return {
+        success: false,
+        error: error.message,
+      };
+    }
+  }
+
+  private async waitForStabilization(action: WaitForStabilizationAction): Promise<any> {
+    const timeout = action.timeout || 5000;
+    this.logger.log(`Waiting for UI stabilization (timeout: ${timeout}ms)`);
+    try {
+      const result = await this.visionService.waitForStabilization(timeout);
+      return {
+        success: true,
+        stabilized: result.stabilized,
+        finalState: result.finalState,
+      };
+    } catch (error) {
+      this.logger.error(`Wait for stabilization failed: ${error.message}`);
+      return {
+        success: false,
+        stabilized: false,
+        error: error.message,
+      };
+    }
+  }
+
+  private async predictAction(action: PredictActionAction): Promise<any> {
+    this.logger.log(`Predicting actions for goal: ${action.goal}`);
+    try {
+      // Get recent history (placeholder - could be enhanced with actual history)
+      const history: string[] = [];
+      const predictions = await this.visionService.predictAction(action.goal, history);
+      return {
+        success: true,
+        goal: action.goal,
+        predictions: predictions,
+      };
+    } catch (error) {
+      this.logger.error(`Action prediction failed: ${error.message}`);
+      return {
+        success: false,
+        error: error.message,
+        predictions: [],
+      };
+    }
+  }
+
+  private async analyzeUi(_action: AnalyzeUiAction): Promise<any> {
+    this.logger.log('Performing comprehensive UI analysis');
+    try {
+      const analysis = await this.visionService.analyzeUiState();
+      return {
+        success: true,
+        summary: analysis.summary,
+        totalElements: analysis.elements.length,
+        interactiveElements: analysis.interactiveElements.map(e => ({
+          id: e.id,
+          type: e.type,
+          coordinates: e.center,
+          text: e.text,
+        })),
+        textElements: analysis.textElements.map(e => ({
+          text: e.text,
+          bbox: e.bbox,
+        })),
+        setOfMarksAvailable: !!analysis.setOfMarks,
+        elementMap: analysis.setOfMarks?.elementMap,
+        annotatedImage: analysis.setOfMarks?.annotatedImage,
+      };
+    } catch (error) {
+      this.logger.error(`UI analysis failed: ${error.message}`);
+      return {
+        success: false,
+        error: error.message,
       };
     }
   }

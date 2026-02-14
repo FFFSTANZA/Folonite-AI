@@ -123,6 +123,29 @@ export type ReadFileAction = {
   path: string;
 };
 
+export type DetectElementsAction = {
+  action: "detect_elements";
+};
+
+export type SetOfMarksAction = {
+  action: "set_of_marks";
+  mode?: "axtree" | "vision" | "hybrid";
+};
+
+export type WaitForStabilizationAction = {
+  action: "wait_for_stabilization";
+  timeout?: number;
+};
+
+export type PredictActionAction = {
+  action: "predict_action";
+  goal: string;
+};
+
+export type AnalyzeUiAction = {
+  action: "analyze_ui";
+};
+
 // Define the union type using the individual action types
 export type ComputerAction =
   | MoveMouseAction
@@ -143,4 +166,9 @@ export type ComputerAction =
   | CursorPositionAction
   | ApplicationAction
   | WriteFileAction
-  | ReadFileAction;
+  | ReadFileAction
+  | DetectElementsAction
+  | SetOfMarksAction
+  | WaitForStabilizationAction
+  | PredictActionAction
+  | AnalyzeUiAction;

@@ -549,3 +549,59 @@ export function isReadFileToolUseBlock(
   const block = obj as Record<string, any>;
   return block.name === "computer_read_file";
 }
+
+export function isDetectElementsToolUseBlock(obj: unknown): boolean {
+  if (!isComputerToolUseContentBlock(obj)) {
+    return false;
+  }
+  const block = obj as Record<string, any>;
+  return block.name === "computer_detect_elements";
+}
+
+export function isSetOfMarksToolUseBlock(obj: unknown): boolean {
+  if (!isComputerToolUseContentBlock(obj)) {
+    return false;
+  }
+  const block = obj as Record<string, any>;
+  return block.name === "computer_set_of_marks";
+}
+
+export function isWaitForStabilizationToolUseBlock(obj: unknown): boolean {
+  if (!isComputerToolUseContentBlock(obj)) {
+    return false;
+  }
+  const block = obj as Record<string, any>;
+  return block.name === "computer_wait_for_stabilization";
+}
+
+export function isPredictActionToolUseBlock(obj: unknown): boolean {
+  if (!isComputerToolUseContentBlock(obj)) {
+    return false;
+  }
+  const block = obj as Record<string, any>;
+  return block.name === "computer_predict_action";
+}
+
+export function isAnalyzeUiToolUseBlock(obj: unknown): boolean {
+  if (!isComputerToolUseContentBlock(obj)) {
+    return false;
+  }
+  const block = obj as Record<string, any>;
+  return block.name === "computer_analyze_ui";
+}
+
+export function isMultiAgentToolUseBlock(obj: unknown): boolean {
+  if (!isComputerToolUseContentBlock(obj)) {
+    return false;
+  }
+  const block = obj as Record<string, any>;
+  return block.name === "multi_agent_execute";
+}
+
+export function isQuickAgentToolUseBlock(obj: unknown): boolean {
+  if (!isComputerToolUseContentBlock(obj)) {
+    return false;
+  }
+  const block = obj as Record<string, any>;
+  return block.name === "quick_agent_execute";
+}

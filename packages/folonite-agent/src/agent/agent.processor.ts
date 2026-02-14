@@ -41,6 +41,7 @@ import {
 import { SummariesService } from '../summaries/summaries.service';
 import { handleComputerToolUse } from './agent.computer-use';
 import { ProxyService } from '../proxy/proxy.service';
+import { MultiAgentProcessor } from './multi-agent.processor';
 
 @Injectable()
 export class AgentProcessor {
@@ -60,6 +61,7 @@ export class AgentProcessor {
     private readonly groqService: GroqService,
     private readonly proxyService: ProxyService,
     private readonly inputCaptureService: InputCaptureService,
+    private readonly multiAgentProcessor: MultiAgentProcessor,
   ) {
     this.services = {
       anthropic: this.anthropicService,
@@ -357,7 +359,7 @@ export class AgentProcessor {
 
       for (const block of messageContentBlocks) {
         if (isComputerToolUseContentBlock(block)) {
-          const result = await handleComputerToolUse(block, this.logger);
+          const result = await handleComputerToolUse(block, this.logger, this.multiAgentProcessor);
           generatedToolResults.push(result);
         }
 

@@ -19,6 +19,11 @@ import {
   PasteTextAction,
   WriteFileAction,
   ReadFileAction,
+  DetectElementsAction,
+  SetOfMarksAction,
+  WaitForStabilizationAction,
+  PredictActionAction,
+  AnalyzeUiAction,
 } from "../types/computerAction.types";
 import {
   ComputerToolUseContentBlock,
@@ -73,6 +78,16 @@ export const isCursorPositionAction =
   createActionTypeGuard<CursorPositionAction>("cursor_position");
 export const isApplicationAction =
   createActionTypeGuard<ApplicationAction>("application");
+export const isDetectElementsAction =
+  createActionTypeGuard<DetectElementsAction>("detect_elements");
+export const isSetOfMarksAction =
+  createActionTypeGuard<SetOfMarksAction>("set_of_marks");
+export const isWaitForStabilizationAction =
+  createActionTypeGuard<WaitForStabilizationAction>("wait_for_stabilization");
+export const isPredictActionAction =
+  createActionTypeGuard<PredictActionAction>("predict_action");
+export const isAnalyzeUiAction =
+  createActionTypeGuard<AnalyzeUiAction>("analyze_ui");
 
 /**
  * Base converter for creating tool use blocks
@@ -336,6 +351,55 @@ export function convertReadFileActionToToolUseBlock(
   });
 }
 
+export function convertDetectElementsActionToToolUseBlock(
+  _action: DetectElementsAction,
+  toolUseId: string
+): ComputerToolUseContentBlock {
+  return createToolUseBlock("computer_detect_elements", toolUseId, {});
+}
+
+export function convertSetOfMarksActionToToolUseBlock(
+  action: SetOfMarksAction,
+  toolUseId: string
+): ComputerToolUseContentBlock {
+  return createToolUseBlock(
+    "computer_set_of_marks",
+    toolUseId,
+    conditionallyAdd({}, [
+      [typeof action.mode === "string", "mode", action.mode],
+    ])
+  );
+}
+
+export function convertWaitForStabilizationActionToToolUseBlock(
+  action: WaitForStabilizationAction,
+  toolUseId: string
+): ComputerToolUseContentBlock {
+  return createToolUseBlock(
+    "computer_wait_for_stabilization",
+    toolUseId,
+    conditionallyAdd({}, [
+      [typeof action.timeout === "number", "timeout", action.timeout],
+    ])
+  );
+}
+
+export function convertPredictActionActionToToolUseBlock(
+  action: PredictActionAction,
+  toolUseId: string
+): ComputerToolUseContentBlock {
+  return createToolUseBlock("computer_predict_action", toolUseId, {
+    goal: action.goal,
+  });
+}
+
+export function convertAnalyzeUiActionToToolUseBlock(
+  _action: AnalyzeUiAction,
+  toolUseId: string
+): ComputerToolUseContentBlock {
+  return createToolUseBlock("computer_analyze_ui", toolUseId, {});
+}
+
 /**
  * Generic converter that handles all action types
  */
@@ -382,6 +446,16 @@ export function convertComputerActionToToolUseBlock(
       return convertWriteFileActionToToolUseBlock(action, toolUseId);
     case "read_file":
       return convertReadFileActionToToolUseBlock(action, toolUseId);
+    case "detect_elements":
+      return convertDetectElementsActionToToolUseBlock(action, toolUseId);
+    case "set_of_marks":
+      return convertSetOfMarksActionToToolUseBlock(action, toolUseId);
+    case "wait_for_stabilization":
+      return convertWaitForStabilizationActionToToolUseBlock(action, toolUseId);
+    case "predict_action":
+      return convertPredictActionActionToToolUseBlock(action, toolUseId);
+    case "analyze_ui":
+      return convertAnalyzeUiActionToToolUseBlock(action, toolUseId);
     default:
       const exhaustiveCheck: never = action;
       throw new Error(

@@ -12,6 +12,8 @@ import { SummariesModule } from 'src/summaries/summaries.modue';
 import { AgentAnalyticsService } from './agent.analytics';
 import { ProxyModule } from 'src/proxy/proxy.module';
 import { GroqModule } from '../groq/groq.module';
+import { AgentsModule } from './agents/agents.module';
+import { MultiAgentProcessor } from './multi-agent.processor';
 
 @Module({
   imports: [
@@ -24,13 +26,15 @@ import { GroqModule } from '../groq/groq.module';
     GoogleModule,
     ProxyModule,
     GroqModule,
+    AgentsModule,
   ],
   providers: [
     AgentProcessor,
+    MultiAgentProcessor,
     AgentScheduler,
     InputCaptureService,
     AgentAnalyticsService,
   ],
-  exports: [AgentProcessor],
+  exports: [AgentProcessor, MultiAgentProcessor],
 })
 export class AgentModule { }
