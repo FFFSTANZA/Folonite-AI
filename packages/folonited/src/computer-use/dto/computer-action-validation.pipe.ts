@@ -26,6 +26,11 @@ import {
   ReadFileActionDto,
   InspectUiActionDto,
   SearchUiActionDto,
+  DetectElementsActionDto,
+  SetOfMarksActionDto,
+  WaitForStabilizationActionDto,
+  PredictActionActionDto,
+  AnalyzeUiActionDto,
 } from './computer-action.dto';
 
 @Injectable()
@@ -93,6 +98,21 @@ export class ComputerActionValidationPipe implements PipeTransform {
         break;
       case 'search_ui':
         dto = plainToClass(SearchUiActionDto, value);
+        break;
+      case 'detect_elements':
+        dto = plainToClass(DetectElementsActionDto, value);
+        break;
+      case 'set_of_marks':
+        dto = plainToClass(SetOfMarksActionDto, value);
+        break;
+      case 'wait_for_stabilization':
+        dto = plainToClass(WaitForStabilizationActionDto, value);
+        break;
+      case 'predict_action':
+        dto = plainToClass(PredictActionActionDto, value);
+        break;
+      case 'analyze_ui':
+        dto = plainToClass(AnalyzeUiActionDto, value);
         break;
       default:
         throw new BadRequestException(`Unknown action: ${value.action}`);

@@ -7,6 +7,7 @@ import * as sharp from 'sharp';
 import { createWorker } from 'tesseract.js';
 import { NutService } from '../nut/nut.service';
 import { AccessibilityService } from './accessibility.service';
+import { VisionService } from './vision.service';
 import {
   ComputerAction,
   MoveMouseAction,
@@ -27,6 +28,11 @@ import {
   UiSnapshotDetail,
   InspectUiAction,
   SearchUiAction,
+  DetectElementsAction,
+  SetOfMarksAction,
+  WaitForStabilizationAction,
+  PredictActionAction,
+  AnalyzeUiAction,
 } from '@folonite/shared';
 
 const UI_SNAPSHOT_DIMENSIONS: Record<UiSnapshotDetail, {
@@ -50,6 +56,7 @@ export class ComputerUseService {
   constructor(
     private readonly nutService: NutService,
     private readonly accessibilityService: AccessibilityService,
+    private readonly visionService: VisionService,
   ) { }
 
   async action(params: ComputerAction): Promise<any> {
@@ -128,6 +135,26 @@ export class ComputerUseService {
 
       case 'read_file': {
         return this.readFile(params);
+      }
+
+      case 'detect_elements': {
+        return this.detectElements(params);
+      }
+
+      case 'set_of_marks': {
+        return this.setOfMarks(params);
+      }
+
+      case 'wait_for_stabilization': {
+        return this.waitForStabilization(params);
+      }
+
+      case 'predict_action': {
+        return this.predictAction(params);
+      }
+
+      case 'analyze_ui': {
+        return this.analyzeUi(params);
       }
 
       default:
@@ -719,6 +746,138 @@ export class ComputerUseService {
       return {
         success: false,
         message: `Error reading file: ${error.message}`,
+      };
+    }
+  }
+
+  // New advanced vision-based methods
+
+  private async detectElements(_action: DetectElementsAction): Promise<any> {
+    this.logger.log('Detecting UI elements with computer vision');
+    try {
+      const result = await this.visionService.detectElements();
+      return {
+        success: true,
+        elementCount: result.elements.length,
+        elements: result.elements,
+        annotatedImage: result.annotatedImage,
+      };
+    } catch (error) {
+      this.logger.error(`Element detection failed: ${error.message}`);
+      return {
+        success: false,
+        error: error.message,
+        elements: [],
+      };
+    }
+  }
+
+  private async setOfMarks(action: SetOfMarksAction): Promise<any> {
+    this.logger.log(`Creating Set-of-Marks (mode: ${action.mode || 'auto'})`);
+    try {
+      let result;
+
+      if (action.mode === 'axtree') {
+        // Get AXTree first, then create marks
+        const uiTree = await this.accessibilityService.getUiTree();
+        result = await this.visionService.createSetOfMarks(uiTree);
+      } else if (action.mode === 'vision') {
+        // Use CV detection only
+        const elements = await this.visionService.detectElements();
+        result = await this.visionService.createSetOfMarks(undefined, elements.elements);
+      } else {
+        // Hybrid or auto: use both
+        result = await this.visionService.createSetOfMarks();
+      }
+
+      if (!result) {
+        throw new Error('Failed to create Set-of-Marks');
+      }
+
+      return {
+        success: true,
+        elementCount: result.elementCount,
+        elementMap: result.elementMap,
+        legend: result.legend,
+        annotatedImage: result.annotatedImage,
+      };
+    } catch (error) {
+      this.logger.error(`Set-of-Marks creation failed: ${error.message}`);
+      return {
+        success: false,
+        error: error.message,
+      };
+    }
+  }
+
+  private async waitForStabilization(action: WaitForStabilizationAction): Promise<any> {
+    const timeout = action.timeout || 5000;
+    this.logger.log(`Waiting for UI stabilization (timeout: ${timeout}ms)`);
+    try {
+      const result = await this.visionService.waitForStabilization(timeout);
+      return {
+        success: true,
+        stabilized: result.stabilized,
+        finalState: result.finalState,
+      };
+    } catch (error) {
+      this.logger.error(`Wait for stabilization failed: ${error.message}`);
+      return {
+        success: false,
+        stabilized: false,
+        error: error.message,
+      };
+    }
+  }
+
+  private async predictAction(action: PredictActionAction): Promise<any> {
+    this.logger.log(`Predicting actions for goal: ${action.goal}`);
+    try {
+      // Get recent history (placeholder - could be enhanced with actual history)
+      const history: string[] = [];
+      const predictions = await this.visionService.predictAction(action.goal, history);
+      return {
+        success: true,
+        goal: action.goal,
+        predictions: predictions,
+      };
+    } catch (error) {
+      this.logger.error(`Action prediction failed: ${error.message}`);
+      return {
+        success: false,
+        error: error.message,
+        predictions: [],
+      };
+    }
+  }
+
+  private async analyzeUi(_action: AnalyzeUiAction): Promise<any> {
+    this.logger.log('Performing comprehensive UI analysis');
+    try {
+      const analysis = await this.visionService.analyzeUiState();
+      return {
+        success: true,
+        summary: analysis.summary,
+        totalElements: analysis.elements.length,
+        interactiveElements: analysis.interactiveElements.map(e => ({
+          id: e.id,
+          type: e.type,
+          coordinates: e.center,
+          text: e.text,
+        })),
+        textElements: analysis.textElements.map(e => ({
+          text: e.text,
+          bbox: e.bbox,
+        })),
+        setOfMarksAvailable: !!analysis.setOfMarks,
+        elementMap: analysis.setOfMarks?.elementMap,
+        annotatedImage: analysis.setOfMarks?.annotatedImage,
+      };
+    } catch (error) {
+      this.logger.error(`UI analysis failed: ${error.message}`);
+      return {
+        success: false,
+        error: error.message,
       };
     }
   }

@@ -23,6 +23,11 @@ import {
   isReadFileToolUseBlock,
   isInspectUiToolUseBlock,
   isSearchUiToolUseBlock,
+  isDetectElementsToolUseBlock,
+  isSetOfMarksToolUseBlock,
+  isWaitForStabilizationToolUseBlock,
+  isPredictActionToolUseBlock,
+  isAnalyzeUiToolUseBlock,
 } from '@folonite/shared';
 import { Logger } from '@nestjs/common';
 
@@ -205,6 +210,193 @@ export async function handleComputerToolUse(
             text: 'ERROR: Failed to search UI',
           },
         ],
+        is_error: true,
+      };
+    }
+  }
+
+  // New advanced vision-based tools
+  if (isDetectElementsToolUseBlock(block)) {
+    logger.debug('Processing detect elements request');
+    try {
+      const result = await detectElements();
+      const content: any[] = [
+        {
+          type: MessageContentType.Text,
+          text: `Detected ${result.elementCount} UI elements:\n\n` +
+            result.elements.map((e: any, i: number) =>
+              `${i + 1}. ${e.type}${e.text ? `: "${e.text}"` : ''} at [${e.center?.x},${e.center?.y}] (confidence: ${(e.confidence * 100).toFixed(0)}%)`
+            ).join('\n'),
+        },
+      ];
+
+      if (result.annotatedImage) {
+        content.push({
+          type: MessageContentType.Image,
+          source: {
+            data: result.annotatedImage,
+            media_type: 'image/png',
+            type: 'base64',
+          },
+        });
+      }
+
+      return {
+        type: MessageContentType.ToolResult,
+        tool_use_id: block.id,
+        content,
+      };
+    } catch (error) {
+      logger.error(`Detect elements failed: ${error.message}`, error.stack);
+      return {
+        type: MessageContentType.ToolResult,
+        tool_use_id: block.id,
+        content: [{ type: MessageContentType.Text, text: `ERROR: ${error.message}` }],
+        is_error: true,
+      };
+    }
+  }
+
+  if (isSetOfMarksToolUseBlock(block)) {
+    logger.debug('Processing Set-of-Marks request');
+    try {
+      const result = await setOfMarks(block.input.mode);
+      const content: any[] = [
+        {
+          type: MessageContentType.Text,
+          text: `Set-of-Marks created with ${result.elementCount} marked elements.\n\n` +
+            `Element Map:\n` +
+            Object.entries(result.elementMap).map(([id, info]: [string, any]) =>
+              `${id}. ${info.type}${info.text ? `: "${info.text}"` : ''} → [${info.coordinates.x},${info.coordinates.y}]`
+            ).join('\n') +
+            `\n\nLegend: ${Object.entries(result.legend).map(([type, color]) => `${type}=${color}`).join(', ')}`,
+        },
+      ];
+
+      if (result.annotatedImage) {
+        content.push({
+          type: MessageContentType.Image,
+          source: {
+            data: result.annotatedImage,
+            media_type: 'image/png',
+            type: 'base64',
+          },
+        });
+      }
+
+      return {
+        type: MessageContentType.ToolResult,
+        tool_use_id: block.id,
+        content,
+      };
+    } catch (error) {
+      logger.error(`Set-of-Marks failed: ${error.message}`, error.stack);
+      return {
+        type: MessageContentType.ToolResult,
+        tool_use_id: block.id,
+        content: [{ type: MessageContentType.Text, text: `ERROR: ${error.message}` }],
+        is_error: true,
+      };
+    }
+  }
+
+  if (isWaitForStabilizationToolUseBlock(block)) {
+    logger.debug('Processing wait for stabilization request');
+    try {
+      const result = await waitForStabilization(block.input.timeout);
+      return {
+        type: MessageContentType.ToolResult,
+        tool_use_id: block.id,
+        content: [
+          {
+            type: MessageContentType.Text,
+            text: result.stabilized
+              ? `UI stabilized successfully.`
+              : `UI did not stabilize within timeout.`,
+          },
+        ],
+      };
+    } catch (error) {
+      logger.error(`Wait for stabilization failed: ${error.message}`, error.stack);
+      return {
+        type: MessageContentType.ToolResult,
+        tool_use_id: block.id,
+        content: [{ type: MessageContentType.Text, text: `ERROR: ${error.message}` }],
+        is_error: true,
+      };
+    }
+  }
+
+  if (isPredictActionToolUseBlock(block)) {
+    logger.debug(`Processing predict action request: ${block.input.goal}`);
+    try {
+      const result = await predictAction(block.input.goal);
+      const predictions = result.predictions || [];
+      return {
+        type: MessageContentType.ToolResult,
+        tool_use_id: block.id,
+        content: [
+          {
+            type: MessageContentType.Text,
+            text: predictions.length > 0
+              ? `Predicted actions for "${block.input.goal}":\n\n` +
+                predictions.map((p: any, i: number) =>
+                  `${i + 1}. ${p.action} → ${p.targetElement || `[${p.coordinates?.x},${p.coordinates?.y}]`}\n` +
+                  `   Confidence: ${(p.confidence * 100).toFixed(0)}%\n` +
+                  `   Reason: ${p.reason}`
+                ).join('\n\n')
+              : `No action predictions available for "${block.input.goal}".`,
+          },
+        ],
+      };
+    } catch (error) {
+      logger.error(`Predict action failed: ${error.message}`, error.stack);
+      return {
+        type: MessageContentType.ToolResult,
+        tool_use_id: block.id,
+        content: [{ type: MessageContentType.Text, text: `ERROR: ${error.message}` }],
+        is_error: true,
+      };
+    }
+  }
+
+  if (isAnalyzeUiToolUseBlock(block)) {
+    logger.debug('Processing analyze UI request');
+    try {
+      const result = await analyzeUi();
+      const content: any[] = [
+        {
+          type: MessageContentType.Text,
+          text: `UI Analysis:\n\n${result.summary}\n\n` +
+            `Interactive Elements (${result.interactiveElements.length}):\n` +
+            result.interactiveElements.map((e: any) =>
+              `- ${e.type}${e.text ? `: "${e.text}"` : ''} at [${e.coordinates?.x},${e.coordinates?.y}]`
+            ).join('\n'),
+        },
+      ];
+
+      if (result.annotatedImage) {
+        content.push({
+          type: MessageContentType.Image,
+          source: {
+            data: result.annotatedImage,
+            media_type: 'image/png',
+            type: 'base64',
+          },
+        });
+      }
+
+      return {
+        type: MessageContentType.ToolResult,
+        tool_use_id: block.id,
+        content,
+      };
+    } catch (error) {
+      logger.error(`Analyze UI failed: ${error.message}`, error.stack);
+      return {
+        type: MessageContentType.ToolResult,
+        tool_use_id: block.id,
+        content: [{ type: MessageContentType.Text, text: `ERROR: ${error.message}` }],
         is_error: true,
       };
     }
@@ -866,5 +1058,106 @@ export async function writeFile(input: {
       success: false,
       message: `Error writing file: ${error.message}`,
     };
+  }
+}
+
+// New advanced vision-based API functions
+
+async function detectElements(): Promise<any> {
+  console.log('Detecting UI elements');
+  try {
+    const response = await fetch(`${FOLONITE_DESKTOP_BASE_URL}/computer-use`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'detect_elements' }),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to detect elements: ${response.statusText}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error in detect_elements:', error);
+    throw error;
+  }
+}
+
+async function setOfMarks(mode?: string): Promise<any> {
+  console.log(`Creating Set-of-Marks (mode: ${mode || 'auto'})`);
+  try {
+    const response = await fetch(`${FOLONITE_DESKTOP_BASE_URL}/computer-use`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'set_of_marks',
+        mode,
+      }),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to create Set-of-Marks: ${response.statusText}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error in set_of_marks:', error);
+    throw error;
+  }
+}
+
+async function waitForStabilization(timeout?: number): Promise<any> {
+  console.log(`Waiting for UI stabilization (timeout: ${timeout || 5000}ms)`);
+  try {
+    const response = await fetch(`${FOLONITE_DESKTOP_BASE_URL}/computer-use`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'wait_for_stabilization',
+        timeout,
+      }),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to wait for stabilization: ${response.statusText}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error in wait_for_stabilization:', error);
+    throw error;
+  }
+}
+
+async function predictAction(goal: string): Promise<any> {
+  console.log(`Predicting actions for goal: ${goal}`);
+  try {
+    const response = await fetch(`${FOLONITE_DESKTOP_BASE_URL}/computer-use`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'predict_action',
+        goal,
+      }),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to predict actions: ${response.statusText}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error in predict_action:', error);
+    throw error;
+  }
+}
+
+async function analyzeUi(): Promise<any> {
+  console.log('Analyzing UI');
+  try {
+    const response = await fetch(`${FOLONITE_DESKTOP_BASE_URL}/computer-use`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'analyze_ui' }),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to analyze UI: ${response.statusText}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error in analyze_ui:', error);
+    throw error;
   }
 }

@@ -250,6 +250,42 @@ export class SearchUiActionDto extends BaseActionDto {
   role?: string;
 }
 
+export class DetectElementsActionDto extends BaseActionDto {
+  @IsIn(['detect_elements'])
+  action: 'detect_elements';
+}
+
+export class SetOfMarksActionDto extends BaseActionDto {
+  @IsIn(['set_of_marks'])
+  action: 'set_of_marks';
+
+  @IsOptional()
+  @IsString()
+  mode?: 'axtree' | 'vision' | 'hybrid';
+}
+
+export class WaitForStabilizationActionDto extends BaseActionDto {
+  @IsIn(['wait_for_stabilization'])
+  action: 'wait_for_stabilization';
+
+  @IsOptional()
+  @IsNumber()
+  timeout?: number;
+}
+
+export class PredictActionActionDto extends BaseActionDto {
+  @IsIn(['predict_action'])
+  action: 'predict_action';
+
+  @IsString()
+  goal: string;
+}
+
+export class AnalyzeUiActionDto extends BaseActionDto {
+  @IsIn(['analyze_ui'])
+  action: 'analyze_ui';
+}
+
 // Union type for all computer actions
 export type ComputerActionDto =
   | MoveMouseActionDto
@@ -270,4 +306,9 @@ export type ComputerActionDto =
   | WriteFileActionDto
   | ReadFileActionDto
   | InspectUiActionDto
-  | SearchUiActionDto;
+  | SearchUiActionDto
+  | DetectElementsActionDto
+  | SetOfMarksActionDto
+  | WaitForStabilizationActionDto
+  | PredictActionActionDto
+  | AnalyzeUiActionDto;
