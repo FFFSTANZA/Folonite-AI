@@ -503,6 +503,60 @@ export const _analyzeUiTool = {
 };
 
 /**
+ * Multi-Agent Tool - Routes complex tasks to specialized agents
+ */
+export const _multiAgentTool = {
+  name: 'multi_agent_execute',
+  description:
+    'Executes complex multi-step tasks using specialized agents. Routes to appropriate agents (terminal, desktop, browser) based on task type for optimal token efficiency and accuracy. Use for: file operations + UI interactions, web research + data extraction, complex workflows requiring multiple tool types.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      goal: {
+        type: 'string' as const,
+        description: 'The high-level goal to accomplish',
+      },
+      require_plan: {
+        type: 'boolean' as const,
+        description: 'Whether to create a detailed execution plan (default: true for complex tasks)',
+        default: true,
+      },
+      max_steps: {
+        type: 'integer' as const,
+        description: 'Maximum number of agent steps (default: 10)',
+        default: 10,
+      },
+    },
+    required: ['goal'],
+  },
+};
+
+/**
+ * Quick Agent Tool - Direct agent routing for simple tasks
+ */
+export const _quickAgentTool = {
+  name: 'quick_agent_execute',
+  description:
+    'Routes a simple task directly to the most appropriate specialized agent without planning. Faster than multi_agent_execute for single-action tasks. Use for: single file operations, one-off UI interactions, quick web lookups.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      task: {
+        type: 'string' as const,
+        description: 'The task to execute',
+      },
+      preferred_agent: {
+        type: 'string' as const,
+        enum: ['terminal', 'desktop', 'browser', 'auto'],
+        description: 'Preferred agent type (default: auto)',
+        default: 'auto',
+      },
+    },
+    required: ['task'],
+  },
+};
+
+/**
  * Export all tools as an array
  */
 export const agentTools = [
@@ -528,6 +582,8 @@ export const agentTools = [
   _waitForStabilizationTool,
   _predictActionTool,
   _analyzeUiTool,
+  _multiAgentTool,
+  _quickAgentTool,
   _setTaskStatusTool,
   _createTaskTool,
   _readFileTool,

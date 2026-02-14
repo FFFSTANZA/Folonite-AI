@@ -28,18 +28,28 @@ import {
   isWaitForStabilizationToolUseBlock,
   isPredictActionToolUseBlock,
   isAnalyzeUiToolUseBlock,
+  isMultiAgentToolUseBlock,
+  isQuickAgentToolUseBlock,
 } from '@folonite/shared';
 import { Logger } from '@nestjs/common';
+import { MultiAgentProcessor } from './multi-agent.processor';
+import { handleMultiAgentToolUse } from './agent.multi-agent';
 
 const FOLONITE_DESKTOP_BASE_URL = process.env.FOLONITE_DESKTOP_BASE_URL as string;
 
 export async function handleComputerToolUse(
   block: ComputerToolUseContentBlock,
   logger: Logger,
+  multiAgentProcessor?: MultiAgentProcessor,
 ): Promise<ToolResultContentBlock> {
   logger.debug(
     `Handling computer tool use: ${block.name}, tool_use_id: ${block.id}`,
   );
+
+  // Handle multi-agent tools
+  if ((isMultiAgentToolUseBlock(block) || isQuickAgentToolUseBlock(block)) && multiAgentProcessor) {
+    return handleMultiAgentToolUse(block, logger, multiAgentProcessor);
+  }
 
   if (isScreenshotToolUseBlock(block)) {
     logger.debug('Processing screenshot request');

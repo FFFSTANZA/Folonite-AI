@@ -589,3 +589,19 @@ export function isAnalyzeUiToolUseBlock(obj: unknown): boolean {
   const block = obj as Record<string, any>;
   return block.name === "computer_analyze_ui";
 }
+
+export function isMultiAgentToolUseBlock(obj: unknown): boolean {
+  if (!isComputerToolUseContentBlock(obj)) {
+    return false;
+  }
+  const block = obj as Record<string, any>;
+  return block.name === "multi_agent_execute";
+}
+
+export function isQuickAgentToolUseBlock(obj: unknown): boolean {
+  if (!isComputerToolUseContentBlock(obj)) {
+    return false;
+  }
+  const block = obj as Record<string, any>;
+  return block.name === "quick_agent_execute";
+}
