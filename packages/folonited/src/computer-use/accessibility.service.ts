@@ -5,6 +5,39 @@ import * as path from 'path';
 
 const execAsync = promisify(exec);
 
+// String similarity function for fuzzy matching (Levenshtein-based)
+function levenshteinDistance(a: string, b: string): number {
+  const matrix: number[][] = [];
+  for (let i = 0; i <= b.length; i++) {
+    matrix[i] = [i];
+  }
+  for (let j = 0; j <= a.length; j++) {
+    matrix[0][j] = j;
+  }
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b.charAt(i - 1) === a.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j] + 1,
+        );
+      }
+    }
+  }
+  return matrix[b.length][a.length];
+}
+
+function stringSimilarity(a: string, b: string): number {
+  if (!a && !b) return 1;
+  if (!a || !b) return 0;
+  const distance = levenshteinDistance(a.toLowerCase(), b.toLowerCase());
+  const maxLength = Math.max(a.length, b.length);
+  return maxLength === 0 ? 1 : 1 - distance / maxLength;
+}
+
 interface UiElement {
   id: string;
   name: string;
@@ -71,51 +104,119 @@ export class AccessibilityService {
   }
 
   /**
-   * Search for UI elements matching the query
+   * Search for UI elements matching the query with fuzzy matching and scoring
    */
   async searchElements(
     query: string,
     role?: string,
-    options: { maxResults?: number; useCache?: boolean } = {},
-  ): Promise<{ count: number; matches: UiElement[]; source: string }> {
-    const { maxResults = 50, useCache = true } = options;
+    options: { maxResults?: number; useCache?: boolean; fuzzyThreshold?: number } = {},
+  ): Promise<{ count: number; matches: UiElement[]; source: string; query: string }> {
+    const { maxResults = 50, useCache = true, fuzzyThreshold = 0.6 } = options;
     const uiTree = await this.getUiTree(useCache);
 
-    const matches: UiElement[] = [];
-    const searchLower = query.toLowerCase();
-    const targetRole = role?.toLowerCase();
+    interface ScoredMatch extends UiElement {
+      score: number;
+      matchType: 'exact' | 'contains' | 'fuzzy' | 'role' | null;
+    }
 
-    const searchNode = (node: UiElement, parentPath = ''): void => {
-      if (matches.length >= maxResults) return;
+    const matches: ScoredMatch[] = [];
+    const searchLower = query.toLowerCase().trim();
+    const targetRole = role?.toLowerCase().trim();
+
+    const searchNode = (node: UiElement, parentPath = '', depth = 0): void => {
+      if (matches.length >= maxResults * 2) return; // Collect more for sorting
+      if (depth > 15) return; // Limit depth
 
       const currentPath = parentPath
         ? `${parentPath} > ${node.name || node.role}`
         : node.name || node.role;
 
-      const nodeName = (node.name || '').toLowerCase();
+      const nodeName = (node.name || '').trim();
+      const nodeNameLower = nodeName.toLowerCase();
       const nodeRole = (node.role || '').toLowerCase();
 
-      const nameMatch = nodeName.includes(searchLower);
-      const roleMatch = !targetRole || nodeRole === targetRole;
+      let score = 0;
+      let matchType: ScoredMatch['matchType'] | null = null;
 
-      if (nameMatch && roleMatch && node.name) {
+      // Role matching
+      const roleMatch = !targetRole || nodeRole === targetRole || nodeRole.includes(targetRole);
+      if (!roleMatch) {
+        // Still check children even if this node doesn't match role
+        if (node.children) {
+          node.children.forEach((child) => searchNode(child, currentPath, depth + 1));
+        }
+        return;
+      }
+
+      // If role matches but no name query, include it with lower score
+      if (targetRole && !searchLower) {
+        score = 0.5;
+        matchType = 'role';
+      }
+
+      // Name matching (only if there's a search query)
+      if (searchLower && nodeName) {
+        // Exact match (highest score)
+        if (nodeNameLower === searchLower) {
+          score = 1.0;
+          matchType = 'exact';
+        }
+        // Starts with (high score)
+        else if (nodeNameLower.startsWith(searchLower)) {
+          score = 0.9;
+          matchType = 'contains';
+        }
+        // Contains (good score)
+        else if (nodeNameLower.includes(searchLower)) {
+          score = 0.8;
+          matchType = 'contains';
+        }
+        // Fuzzy match
+        else {
+          const similarity = stringSimilarity(nodeNameLower, searchLower);
+          if (similarity >= fuzzyThreshold) {
+            score = similarity * 0.7;
+            matchType = 'fuzzy';
+          }
+        }
+      }
+
+      // Boost score for interactive elements
+      if (score > 0) {
+        const interactiveRoles = ['push button', 'button', 'link', 'text', 'entry', 'menu item'];
+        if (interactiveRoles.some((r) => nodeRole.includes(r))) {
+          score += 0.1;
+        }
+
+        // Boost for elements with valid rectangles (clickable)
+        if (node.rect && node.rect.width > 0 && node.rect.height > 0) {
+          score += 0.05;
+        }
+
         matches.push({
           ...node,
           path: currentPath,
+          score: Math.min(score, 1.0),
+          matchType,
         });
       }
 
       if (node.children) {
-        node.children.forEach((child) => searchNode(child, currentPath));
+        node.children.forEach((child) => searchNode(child, currentPath, depth + 1));
       }
     };
 
     uiTree.tree.forEach((node) => searchNode(node));
 
+    // Sort by score descending and take top results
+    matches.sort((a, b) => b.score - a.score);
+    const topMatches = matches.slice(0, maxResults);
+
     return {
-      count: matches.length,
-      matches,
+      count: topMatches.length,
+      matches: topMatches,
       source: uiTree.source,
+      query,
     };
   }
 
@@ -239,23 +340,64 @@ export class AccessibilityService {
     lines.push(`UI State (source: ${uiTree.source}):`);
     lines.push('');
 
+    // Group elements by application/window for better readability
     const formatNode = (node: UiElement, indent = 0): void => {
       const prefix = '  '.repeat(indent);
       const name = node.name || '[unnamed]';
       const role = node.role || 'unknown';
-      const rect = node.rect
-        ? `(${node.rect.x},${node.rect.y} ${node.rect.width}x${node.rect.height})`
-        : '';
 
-      // Truncate long names
-      const displayName =
-        name.length > 50 ? name.substring(0, 47) + '...' : name;
+      // Skip purely structural elements at deeper levels
+      if (indent > 2 && ['panel', 'layer', 'group', 'filler'].includes(role)) {
+        return;
+      }
 
-      lines.push(`${prefix}[${role}] "${displayName}" ${rect}`);
+      // Format coordinates more compactly
+      let coords = '';
+      if (node.rect) {
+        const { x, y, width, height } = node.rect;
+        // Only show coords for interactive elements or at top levels
+        if (indent < 2 || ['push button', 'button', 'link', 'text', 'entry', 'menu', 'menu item'].some(r => role.includes(r))) {
+          coords = ` [${x},${y} ${width}x${height}]`;
+        }
+      }
 
+      // Truncate very long names
+      const maxLen = indent === 0 ? 60 : 40;
+      const displayName = name.length > maxLen ? name.substring(0, maxLen - 3) + '...' : name;
+
+      // Compact role names
+      const compactRole = role
+        .replace('push button', 'btn')
+        .replace('button', 'btn')
+        .replace('application', 'app')
+        .replace('window', 'win')
+        .replace('text entry', 'input')
+        .replace('entry', 'input')
+        .replace('check box', 'checkbox')
+        .replace('combo box', 'dropdown')
+        .replace('radio button', 'radio')
+        .replace('menu item', 'item')
+        .replace('scroll bar', 'scrollbar')
+        .replace('list item', 'li')
+        .replace('table cell', 'cell');
+
+      lines.push(`${prefix}${compactRole}: "${displayName}"${coords}`);
+
+      // Limit children by relevance
       if (node.children && indent < 3) {
-        // Limit depth to keep output manageable
-        node.children.forEach((child) => formatNode(child, indent + 1));
+        // At deeper levels, only show interactive elements
+        const childrenToShow = indent >= 2
+          ? node.children.filter(c => {
+              const childRole = (c.role || '').toLowerCase();
+              return ['button', 'link', 'text', 'entry', 'input', 'menu', 'item', 'check', 'radio'].some(r => childRole.includes(r));
+            })
+          : node.children;
+
+        childrenToShow.slice(0, indent === 0 ? 50 : 20).forEach((child) => formatNode(child, indent + 1));
+
+        if (childrenToShow.length > (indent === 0 ? 50 : 20)) {
+          lines.push(`${prefix}  ... (${childrenToShow.length - (indent === 0 ? 50 : 20)} more)`);
+        }
       }
     };
 

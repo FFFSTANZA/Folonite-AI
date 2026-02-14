@@ -158,13 +158,39 @@ export async function handleComputerToolUse(
     );
     try {
       const results = await searchUi(block.input.query, block.input.role);
+
+      // Format results in a more LLM-friendly way
+      let displayText: string;
+      if (results.count === 0) {
+        displayText = `No UI elements found matching "${block.input.query}"${block.input.role ? ` (role: ${block.input.role})` : ''}.`;
+      } else {
+        const lines: string[] = [
+          `Found ${results.count} element(s) matching "${block.input.query}":`,
+          '',
+        ];
+
+        results.matches.forEach((match: any, index: number) => {
+          const score = match.score ? ` (score: ${(match.score * 100).toFixed(0)}%)` : '';
+          const matchType = match.matchType ? ` [${match.matchType}]` : '';
+          const name = match.name || '[unnamed]';
+          const role = match.role || 'unknown';
+          const rect = match.rect
+            ? ` [${match.rect.x},${match.rect.y} ${match.rect.width}x${match.rect.height}]`
+            : '';
+
+          lines.push(`${index + 1}. ${role}: "${name}"${rect}${score}${matchType}`);
+        });
+
+        displayText = lines.join('\n');
+      }
+
       return {
         type: MessageContentType.ToolResult,
         tool_use_id: block.id,
         content: [
           {
             type: MessageContentType.Text,
-            text: `Search Results:\n${JSON.stringify(results, null, 2)}`,
+            text: displayText,
           },
         ],
       };
