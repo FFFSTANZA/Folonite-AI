@@ -89,11 +89,16 @@ export default function TaskPage() {
 
   // For inactive tasks, auto-load all messages for proper screenshot navigation
   useEffect(() => {
-    if (isTaskInactive() && hasMoreMessages && !isLoadingMoreMessages) {
+    const isInactive =
+      taskStatus === TaskStatus.COMPLETED ||
+      taskStatus === TaskStatus.FAILED ||
+      taskStatus === TaskStatus.CANCELLED;
+
+    if (isInactive && hasMoreMessages && !isLoadingMoreMessages) {
       loadMoreMessages();
     }
   }, [
-    isTaskInactive(),
+    taskStatus,
     hasMoreMessages,
     isLoadingMoreMessages,
     loadMoreMessages,

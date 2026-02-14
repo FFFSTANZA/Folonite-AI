@@ -28,6 +28,8 @@ RUN apt-get update && apt-get install -y \
     python3 python3-pip curl wget git vim \
     # Utilities
     supervisor netcat-openbsd \
+    # Accessibility
+    at-spi2-core python3-pyatspi \
     # Applications
     xpdf gedit xpaint \
     # Libraries
@@ -139,6 +141,7 @@ RUN ARCH=$(dpkg --print-architecture) && \
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get update \
     && apt-get install -y nodejs \
+    && npm install -g node-gyp node-gyp-build \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Upgrade pip

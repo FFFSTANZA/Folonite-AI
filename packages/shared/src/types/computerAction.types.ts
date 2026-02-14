@@ -93,6 +93,16 @@ export type UiSnapshotAction = {
   ocr?: boolean;
 };
 
+export type InspectUiAction = {
+  action: "inspect_ui";
+};
+
+export type SearchUiAction = {
+  action: "search_ui";
+  query: string;
+  role?: string;
+};
+
 export type CursorPositionAction = {
   action: "cursor_position";
 };
@@ -128,6 +138,8 @@ export type ComputerAction =
   | WaitAction
   | ScreenshotAction
   | UiSnapshotAction
+  | InspectUiAction
+  | SearchUiAction
   | CursorPositionAction
   | ApplicationAction
   | WriteFileAction

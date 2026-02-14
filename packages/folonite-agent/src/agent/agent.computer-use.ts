@@ -21,6 +21,8 @@ import {
   isApplicationToolUseBlock,
   isPasteTextToolUseBlock,
   isReadFileToolUseBlock,
+  isInspectUiToolUseBlock,
+  isSearchUiToolUseBlock,
 } from '@folonite/shared';
 import { Logger } from '@nestjs/common';
 
@@ -75,7 +77,7 @@ export async function handleComputerToolUse(
     logger.debug('Processing UI snapshot request');
     try {
       const snapshot = await uiSnapshot(block.input);
-      const content = [];
+      const content: any[] = [];
 
       if (snapshot.ocrText) {
         content.push({
@@ -107,6 +109,68 @@ export async function handleComputerToolUse(
           {
             type: MessageContentType.Text,
             text: 'ERROR: Failed to take UI snapshot',
+          },
+        ],
+        is_error: true,
+      };
+    }
+  }
+
+  if (isInspectUiToolUseBlock(block)) {
+    logger.debug('Processing UI inspection request');
+    try {
+      const uiTree = await inspectUi();
+      return {
+        type: MessageContentType.ToolResult,
+        tool_use_id: block.id,
+        content: [
+          {
+            type: MessageContentType.Text,
+            text: `Current UI State:\n${JSON.stringify(uiTree, null, 2)}`,
+          },
+        ],
+      };
+    } catch (error) {
+      logger.error(`UI inspection failed: ${error.message}`, error.stack);
+      return {
+        type: MessageContentType.ToolResult,
+        tool_use_id: block.id,
+        content: [
+          {
+            type: MessageContentType.Text,
+            text: 'ERROR: Failed to inspect UI',
+          },
+        ],
+        is_error: true,
+      };
+    }
+  }
+
+  if (isSearchUiToolUseBlock(block)) {
+    logger.debug(
+      `Processing UI search request: ${block.input.query} (role: ${block.input.role})`,
+    );
+    try {
+      const results = await searchUi(block.input.query, block.input.role);
+      return {
+        type: MessageContentType.ToolResult,
+        tool_use_id: block.id,
+        content: [
+          {
+            type: MessageContentType.Text,
+            text: `Search Results:\n${JSON.stringify(results, null, 2)}`,
+          },
+        ],
+      };
+    } catch (error) {
+      logger.error(`UI search failed: ${error.message}`, error.stack);
+      return {
+        type: MessageContentType.ToolResult,
+        tool_use_id: block.id,
+        content: [
+          {
+            type: MessageContentType.Text,
+            text: 'ERROR: Failed to search UI',
           },
         ],
         is_error: true,
@@ -630,6 +694,54 @@ async function uiSnapshot(input: {
     return data;
   } catch (error) {
     console.error('Error in ui_snapshot action:', error);
+    throw error;
+  }
+}
+
+async function inspectUi(): Promise<any> {
+  console.log('Inspecting UI');
+
+  try {
+    const response = await fetch(`${FOLONITE_DESKTOP_BASE_URL}/computer-use`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'inspect_ui',
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to inspect UI: ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error in inspect_ui action:', error);
+    throw error;
+  }
+}
+
+async function searchUi(query: string, role?: string): Promise<any> {
+  console.log(`Searching UI for: ${query}`);
+
+  try {
+    const response = await fetch(`${FOLONITE_DESKTOP_BASE_URL}/computer-use`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'search_ui',
+        query,
+        role,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to search UI: ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error in search_ui action:', error);
     throw error;
   }
 }

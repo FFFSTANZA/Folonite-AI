@@ -16,7 +16,7 @@ export function useScrollScreenshot({ messages, scrollContainerRef }: UseScrollS
   useEffect(() => {
     const screenshots = extractScreenshots(messages);
     setAllScreenshots(screenshots);
-    
+
     // Only set initial screenshot if we don't have one yet
     if (screenshots.length > 0 && !currentScreenshot) {
       setTimeout(() => {
@@ -42,7 +42,7 @@ export function useScrollScreenshot({ messages, scrollContainerRef }: UseScrollS
         }
       }, 300);
     }
-  }, [messages, scrollContainerRef]);
+  }, [messages, scrollContainerRef, currentScreenshot]);
 
   // After initial render, force a re-check for screenshot markers using MutationObserver
   useEffect(() => {
@@ -79,7 +79,7 @@ export function useScrollScreenshot({ messages, scrollContainerRef }: UseScrollS
       if ((Date.now() - now) <= 150 && allScreenshots.length > 0) {
         setCurrentScreenshot(prevScreenshot => {
           const screenshot = getScreenshotForScrollPosition(allScreenshots, messages, scrollElement);
-          
+
           if (screenshot && screenshot.id !== prevScreenshot?.id) {
             return screenshot;
           }
@@ -103,7 +103,7 @@ export function useScrollScreenshot({ messages, scrollContainerRef }: UseScrollS
 
     // Only attach to the container itself
     container.addEventListener('scroll', scrollHandler, { passive: true });
-    
+
     return () => container.removeEventListener('scroll', scrollHandler);
   }, [handleScroll, scrollContainerRef]);
 

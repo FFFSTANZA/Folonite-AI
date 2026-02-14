@@ -36,12 +36,12 @@ export default function Home() {
     setIsLoadingModels(true);
     try {
       const data = await fetchModels();
-      
+
       // Check for custom Groq model
       const storedGroqModel = localStorage.getItem("folonite_groq_model");
       const apiKeys = getStoredApiKeys();
 
-      let allModels = [...data];
+      const allModels = [...data];
 
       // If we have a custom Groq model and the API key is set, add it to the list
       if (storedGroqModel && apiKeys.groq) {
@@ -208,14 +208,14 @@ export default function Home() {
                     {['anthropic', 'openai', 'google', 'groq', 'proxy'].map(provider => {
                       const providerModels = models.filter(m => m.provider === provider);
                       if (providerModels.length === 0) return null;
-                      
+
                       return (
                         <div key={provider}>
                           <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                            {provider === 'anthropic' ? 'Claude (Anthropic)' : 
-                             provider === 'openai' ? 'ChatGPT (OpenAI)' :
-                             provider === 'google' ? 'Gemini (Google)' :
-                             provider === 'groq' ? 'Groq' : 'Proxy'}
+                            {provider === 'anthropic' ? 'Claude (Anthropic)' :
+                              provider === 'openai' ? 'ChatGPT (OpenAI)' :
+                                provider === 'google' ? 'Gemini (Google)' :
+                                  provider === 'groq' ? 'Groq' : 'Proxy'}
                           </div>
                           {providerModels.map((m) => (
                             <SelectItem key={m.name} value={m.name} className="text-sm">

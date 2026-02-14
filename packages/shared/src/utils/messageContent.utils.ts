@@ -17,6 +17,8 @@ import {
   WaitToolUseBlock,
   ScreenshotToolUseBlock,
   UiSnapshotToolUseBlock,
+  InspectUiToolUseBlock,
+  SearchUiToolUseBlock,
   CursorPositionToolUseBlock,
   DragMouseToolUseBlock,
   ScrollToolUseBlock,
@@ -469,6 +471,28 @@ export function isUiSnapshotToolUseBlock(
 
   const block = obj as Record<string, any>;
   return block.name === "computer_ui_snapshot";
+}
+
+export function isInspectUiToolUseBlock(
+  obj: unknown
+): obj is InspectUiToolUseBlock {
+  if (!isComputerToolUseContentBlock(obj)) {
+    return false;
+  }
+
+  const block = obj as Record<string, any>;
+  return block.name === "computer_inspect_ui";
+}
+
+export function isSearchUiToolUseBlock(
+  obj: unknown
+): obj is SearchUiToolUseBlock {
+  if (!isComputerToolUseContentBlock(obj)) {
+    return false;
+  }
+
+  const block = obj as Record<string, any>;
+  return block.name === "computer_search_ui";
 }
 
 export function isApplicationToolUseBlock(

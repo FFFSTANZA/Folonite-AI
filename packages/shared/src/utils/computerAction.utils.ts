@@ -12,6 +12,8 @@ import {
   WaitAction,
   ScreenshotAction,
   UiSnapshotAction,
+  InspectUiAction,
+  SearchUiAction,
   CursorPositionAction,
   ApplicationAction,
   PasteTextAction,
@@ -63,6 +65,10 @@ export const isScreenshotAction =
   createActionTypeGuard<ScreenshotAction>("screenshot");
 export const isUiSnapshotAction =
   createActionTypeGuard<UiSnapshotAction>("ui_snapshot");
+export const isInspectUiAction =
+  createActionTypeGuard<InspectUiAction>("inspect_ui");
+export const isSearchUiAction =
+  createActionTypeGuard<SearchUiAction>("search_ui");
 export const isCursorPositionAction =
   createActionTypeGuard<CursorPositionAction>("cursor_position");
 export const isApplicationAction =
@@ -278,6 +284,23 @@ export function convertUiSnapshotActionToToolUseBlock(
   );
 }
 
+export function convertInspectUiActionToToolUseBlock(
+  _action: InspectUiAction,
+  toolUseId: string
+): ComputerToolUseContentBlock {
+  return createToolUseBlock("computer_inspect_ui", toolUseId, {});
+}
+
+export function convertSearchUiActionToToolUseBlock(
+  action: SearchUiAction,
+  toolUseId: string
+): ComputerToolUseContentBlock {
+  return createToolUseBlock("computer_search_ui", toolUseId, {
+    query: action.query,
+    role: action.role,
+  });
+}
+
 export function convertCursorPositionActionToToolUseBlock(
   action: CursorPositionAction,
   toolUseId: string
@@ -347,6 +370,10 @@ export function convertComputerActionToToolUseBlock(
       return convertScreenshotActionToToolUseBlock(action, toolUseId);
     case "ui_snapshot":
       return convertUiSnapshotActionToToolUseBlock(action, toolUseId);
+    case "inspect_ui":
+      return convertInspectUiActionToToolUseBlock(action, toolUseId);
+    case "search_ui":
+      return convertSearchUiActionToToolUseBlock(action, toolUseId);
     case "cursor_position":
       return convertCursorPositionActionToToolUseBlock(action, toolUseId);
     case "application":

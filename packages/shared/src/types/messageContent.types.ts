@@ -171,6 +171,18 @@ export type UiSnapshotToolUseBlock = ToolUseContentBlock & {
   };
 };
 
+export type InspectUiToolUseBlock = ToolUseContentBlock & {
+  name: "computer_inspect_ui";
+};
+
+export type SearchUiToolUseBlock = ToolUseContentBlock & {
+  name: "computer_search_ui";
+  input: {
+    query: string;
+    role?: string;
+  };
+};
+
 export type CursorPositionToolUseBlock = ToolUseContentBlock & {
   name: "computer_cursor_position";
 };
@@ -209,6 +221,8 @@ export type ComputerToolUseContentBlock =
   | WaitToolUseBlock
   | ScreenshotToolUseBlock
   | UiSnapshotToolUseBlock
+  | InspectUiToolUseBlock
+  | SearchUiToolUseBlock
   | DragMouseToolUseBlock
   | ScrollToolUseBlock
   | CursorPositionToolUseBlock

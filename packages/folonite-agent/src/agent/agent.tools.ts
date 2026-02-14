@@ -306,6 +306,37 @@ export const _cursorPositionTool = {
   },
 };
 
+export const _inspectUiTool = {
+  name: 'computer_inspect_ui',
+  description:
+    'Returns a text-based representation of the current UI, including open windows, titles, and positions. Use this instead of a ui_snapshot to save tokens and for faster analysis.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {},
+  },
+};
+
+export const _searchUiTool = {
+  name: 'computer_search_ui',
+  description:
+    'Searches the current UI for elements matching a specific text or role. Returns coordinates and details of matching elements. Extremely efficient for finding buttons or fields.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      query: {
+        type: 'string' as const,
+        description: 'Text or part of the text to search for',
+      },
+      role: {
+        type: 'string' as const,
+        description: 'Optional role to filter by (e.g., "push button", "text")',
+        nullable: true,
+      },
+    },
+    required: ['query'],
+  },
+};
+
 export const _applicationTool = {
   name: 'computer_application',
   description: 'Opens or focuses an application and ensures it is fullscreen',
@@ -422,6 +453,8 @@ export const agentTools = [
   _uiSnapshotTool,
   _applicationTool,
   _cursorPositionTool,
+  _inspectUiTool,
+  _searchUiTool,
   _setTaskStatusTool,
   _createTaskTool,
   _readFileTool,

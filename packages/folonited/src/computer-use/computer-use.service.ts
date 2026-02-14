@@ -24,6 +24,8 @@ import {
   ReadFileAction,
   UiSnapshotAction,
   UiSnapshotDetail,
+  InspectUiAction,
+  SearchUiAction,
 } from '@folonite/shared';
 
 const UI_SNAPSHOT_DIMENSIONS: Record<UiSnapshotDetail, {
@@ -44,7 +46,7 @@ export class ComputerUseService {
   private ocrWorkerPromise?: Promise<OcrWorker>;
   private ocrQueue: Promise<string | null> = Promise.resolve(null);
 
-  constructor(private readonly nutService: NutService) {}
+  constructor(private readonly nutService: NutService) { }
 
   async action(params: ComputerAction): Promise<any> {
     this.logger.log(`Executing computer action: ${params.action}`);
@@ -101,6 +103,12 @@ export class ComputerUseService {
 
       case 'ui_snapshot':
         return this.uiSnapshot(params);
+
+      case 'inspect_ui':
+        return this.inspectUi();
+
+      case 'search_ui':
+        return this.searchUi(params);
 
       case 'cursor_position':
         return this.cursor_position();
@@ -320,6 +328,128 @@ export class ComputerUseService {
     return await this.nutService.getCursorPosition();
   }
 
+  private async inspectUi(): Promise<any> {
+    this.logger.log(`Inspecting UI State via AXTree`);
+    const execAsync = promisify(exec);
+
+    try {
+      // 1. Try to get semantic AXTree using the python script
+      try {
+        const scriptPath = path.join(process.cwd(), 'scripts/dump_ax_tree.py');
+        const { stdout: axTreeOutput } = await execAsync(
+          `sudo -u user DISPLAY=:0.0 python3 "${scriptPath}"`,
+          { timeout: 10000 },
+        );
+        const axTree = JSON.parse(axTreeOutput);
+        if (!axTree.error) {
+          return {
+            type: 'axtree',
+            tree: axTree,
+            timestamp: new Date().toISOString(),
+          };
+        }
+        this.logger.warn(`AXTree script error: ${axTree.error}`);
+      } catch (axError) {
+        this.logger.warn(`Failed to get AXTree: ${axError.message}`);
+      }
+
+      // 2. Fallback to window list if AXTree fails
+      this.logger.log(`Falling back to window list inspection`);
+      const { stdout } = await execAsync('sudo -u user wmctrl -lG');
+
+      const windows = stdout
+        .split('\n')
+        .filter((line) => line.trim().length > 0)
+        .map((line) => {
+          const parts = line.split(/\s+/);
+          const title = parts.slice(7).join(' ');
+          return {
+            id: parts[0],
+            x: parseInt(parts[2], 10),
+            y: parseInt(parts[3], 10),
+            width: parseInt(parts[4], 10),
+            height: parseInt(parts[5], 10),
+            title: title,
+          };
+        });
+
+      // Get screen resolution
+      const { stdout: xrandrOutput } = await execAsync(
+        "sudo -u user xrandr | grep '*' | awk '{print $1}'",
+      );
+      const resolution = xrandrOutput.trim().split('\n')[0] || '1024x768';
+
+      return {
+        type: 'window_list',
+        resolution,
+        windows,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      this.logger.error(`Error inspecting UI: ${error.message}`);
+      return {
+        error: 'Failed to inspect UI',
+        message: error.message,
+      };
+    }
+  }
+
+  private async searchUi(action: SearchUiAction): Promise<any> {
+    this.logger.log(`Searching UI for: ${action.query}`);
+    const uiState = await this.inspectUi();
+
+    if (uiState.error) {
+      return uiState;
+    }
+
+    const { query, role } = action;
+    const matches: any[] = [];
+
+    const searchNode = (node: any) => {
+      const nameMatch =
+        node.name && node.name.toLowerCase().includes(query.toLowerCase());
+      const roleMatch =
+        !role || (node.role && node.role.toLowerCase() === role.toLowerCase());
+
+      if (nameMatch && roleMatch) {
+        matches.push({
+          name: node.name,
+          role: node.role,
+          rect: node.rect,
+          description: node.description,
+        });
+      }
+
+      if (node.children) {
+        node.children.forEach(searchNode);
+      }
+    };
+
+    if (uiState.type === 'axtree' && uiState.tree) {
+      uiState.tree.forEach(searchNode);
+    } else if (uiState.type === 'window_list' && uiState.windows) {
+      uiState.windows.forEach((win: any) => {
+        if (
+          win.title &&
+          win.title.toLowerCase().includes(query.toLowerCase())
+        ) {
+          matches.push({
+            name: win.title,
+            role: 'window',
+            rect: { x: win.x, y: win.y, width: win.width, height: win.height },
+          });
+        }
+      });
+    }
+
+    return {
+      query,
+      role,
+      count: matches.length,
+      matches,
+    };
+  }
+
   private async application(action: ApplicationAction): Promise<void> {
     const execAsync = promisify(exec);
 
@@ -451,12 +581,9 @@ export class ComputerUseService {
   private async getOcrWorker(): Promise<OcrWorker> {
     if (!this.ocrWorkerPromise) {
       this.ocrWorkerPromise = (async () => {
-        const worker = await createWorker({
+        const worker = await createWorker('eng', 1, {
           logger: () => undefined,
         });
-        await worker.load();
-        await worker.loadLanguage('eng');
-        await worker.initialize('eng');
         return worker;
       })();
     }
@@ -530,10 +657,10 @@ export class ComputerUseService {
         await execAsync(`sudo chown user:user "${targetPath}"`);
         await execAsync(`sudo chmod 644 "${targetPath}"`);
         // Clean up temp file
-        await fs.unlink(tempFile).catch(() => {});
+        await fs.unlink(tempFile).catch(() => { });
       } catch (error) {
         // Clean up temp file on error
-        await fs.unlink(tempFile).catch(() => {});
+        await fs.unlink(tempFile).catch(() => { });
         throw error;
       }
 
@@ -586,7 +713,7 @@ export class ComputerUseService {
         const fileSize = parseInt(statOutput.trim(), 10);
 
         // Clean up temp file
-        await fs.unlink(tempFile).catch(() => {});
+        await fs.unlink(tempFile).catch(() => { });
 
         // Convert to base64
         const base64Data = buffer.toString('base64');
@@ -628,7 +755,7 @@ export class ComputerUseService {
         };
       } catch (error) {
         // Clean up temp file on error
-        await fs.unlink(tempFile).catch(() => {});
+        await fs.unlink(tempFile).catch(() => { });
         throw error;
       }
     } catch (error) {
